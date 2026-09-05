@@ -493,7 +493,8 @@ void EditorWindow::ShowObjectsWindow()
 			ImGui::SameLine();
 			ImGui::SetNextItemWidth(comboW);
 			int col = static_cast<int>(m_currentFilterColumn);
-			if (ImGui::Combo("##FilterBy", &col, [](void*, int idx, const char** out) -> bool {
+			if (ImGui::Combo(
+					"##FilterBy", &col, [](void*, int idx, const char** out) -> bool {
 					*out = GetFilterColumnName(idx);
 					return true; }, nullptr, kFilterColumnCount))
 				m_currentFilterColumn = static_cast<FilterColumn>(col);
@@ -884,15 +885,15 @@ void EditorWindow::ShowObjectsWindow()
 				}
 
 				ImGui::EndTable();  // End DetailsTable
-			}  // End if BeginTable("DetailsTable")
+			}                       // End if BeginTable("DetailsTable")
 
 			EndScrollableContent();  // End ObjectsScrollable
 
-		}  // End if BeginChild("##ObjectsContent")
+		}                   // End if BeginChild("##ObjectsContent")
 		ImGui::EndChild();  // End ObjectsContent child
 
 		ImGui::EndTable();  // End ObjectTable
-	}  // End if BeginTable("ObjectTable")
+	}                       // End if BeginTable("ObjectTable")
 
 	// Confirmation modal for json deletion - must be outside BeginChild so the modal can block the root window
 	if (pendingDeleteWidget) {

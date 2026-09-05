@@ -134,7 +134,8 @@ float3 XYZToAP1(float3 xyz)
 }
 
 // ---------------------------------------------------------------------------
-[numthreads(8, 8, 1)] void CS_ChromaticBlur(uint2 tid : SV_DispatchThreadID) {
+[numthreads(8, 8, 1)] void CS_ChromaticBlur(uint2 tid
+											: SV_DispatchThreadID) {
 	if (tid.x >= FFTResolution || tid.y >= FFTResolution)
 		return;
 

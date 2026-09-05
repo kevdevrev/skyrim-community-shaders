@@ -44,7 +44,8 @@ cbuffer GlareCB : register(b1)
 	float EyelashCurvature;
 };
 
-[numthreads(8, 8, 1)] void CS_Threshold(uint2 tid : SV_DispatchThreadID) {
+[numthreads(8, 8, 1)] void CS_Threshold(uint2 tid
+										: SV_DispatchThreadID) {
 	if (tid.x >= FFTResolution || tid.y >= FFTResolution)
 		return;
 

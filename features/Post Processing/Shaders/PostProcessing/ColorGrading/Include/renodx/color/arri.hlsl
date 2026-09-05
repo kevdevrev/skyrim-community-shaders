@@ -105,7 +105,7 @@ namespace renodx
 #undef GENERATE_ARRI_LOGC_FUNCTIONS
 
 			}  // namespace logc
-		}  // namespace arri
-	}  // namespace color
+		}      // namespace arri
+	}          // namespace color
 }  // namespace renodx
 #endif  // RENODX_SHADERS_COLOR_ARRI_HLSL

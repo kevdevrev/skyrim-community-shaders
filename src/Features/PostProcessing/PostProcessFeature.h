@@ -92,5 +92,5 @@ struct PostProcessFeature : public std::enable_shared_from_this<PostProcessFeatu
 	};
 	virtual void Draw(TextureInfo& inout_tex) = 0;  // read from last pass, do the thing, and replace it with output texture
 
-	virtual inline void Reset() {};
+	virtual inline void Reset(){};
 };

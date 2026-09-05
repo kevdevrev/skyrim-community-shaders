@@ -102,7 +102,8 @@ float2 FishEye(float2 texcoord, float FEFoV, float FECrop)
 	return texcoord;
 }
 
-[numthreads(8, 8, 1)] void CS_Camera(uint3 DTid : SV_DispatchThreadID) {
+[numthreads(8, 8, 1)] void CS_Camera(uint3 DTid
+									 : SV_DispatchThreadID) {
 	static const float2 TEXEL_SIZE = float2(1.0f / ScreenSize.x, 1.0f / ScreenSize.y);
 	float2 texcoord = (DTid.xy + 0.5f) * TEXEL_SIZE;
 

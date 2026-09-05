@@ -80,7 +80,7 @@ namespace renodx
 			}
 
 		}  // namespace frostbite
-	}  // namespace tonemap
+	}      // namespace tonemap
 }  // namespace renodx
 
 #endif  // SRC_SHADERS_FROSTBITE_HLSL_

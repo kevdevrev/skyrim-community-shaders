@@ -350,7 +350,7 @@ namespace renodx
 			}
 
 		}  // namespace correct
-	}  // namespace color
+	}      // namespace color
 }  // namespace renodx
 
 #endif  // SRC_SHADERS_COLORCORRECT_HLSL_

@@ -29,7 +29,8 @@ float BlueNoise(uint2 pos, uint frame)
 	return frac(52.9829189 * frac(0.06711056 * x + 0.00583715 * y));
 }
 
-[numthreads(8, 8, 1)] void main(uint3 tid : SV_DispatchThreadID) {
+[numthreads(8, 8, 1)] void main(uint3 tid
+								: SV_DispatchThreadID) {
 	if (tid.x >= SubWidth || tid.y >= SubHeight)
 		return;
 

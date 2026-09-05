@@ -612,6 +612,6 @@ float Eq12_AltNormalizedForm(/*...*/) { return 0.0f; }
 			}
 
 		}  // namespace castlecsf
-	}  // namespace color
+	}      // namespace color
 }  // namespace renodx
 #endif  // CASTLE_CSF_HLSL

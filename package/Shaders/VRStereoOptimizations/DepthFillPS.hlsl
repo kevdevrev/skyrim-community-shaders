@@ -12,15 +12,16 @@ Texture2D<float> SceneDepthTexture : register(t0);
 
 struct PS_INPUT
 {
-	float4 Position: SV_Position;
-	float2 TexCoord: TEXCOORD0;
+	float4 Position : SV_Position;
+	float2 TexCoord : TEXCOORD0;
 };
 
 // Force the stencil EQUAL=1 test before the shader so the PS only runs on the ~80% of
 // pixels that were culled (MODE_MAIN), not the whole Eye 1 half. Best-effort: drivers may
 // keep late depth-stencil when SV_Depth is exported (forfeiting the early cull), but the
 // result is identical either way since the stencil is read-only (WriteMask 0).
-[earlydepthstencil] float main(PS_INPUT input) : SV_Depth
+[earlydepthstencil] float main(PS_INPUT input) :
+	SV_Depth
 {
 	// Depth source is full SBS resolution - SV_Position maps directly
 	// (viewport is the Eye 1 half, so Position.x starts at eyeWidth).

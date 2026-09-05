@@ -8,8 +8,8 @@ cbuffer DitherParams : register(b0)
 
 struct PS_INPUT
 {
-	float4 pos: SV_POSITION;
-	float2 txcoord0: TEXCOORD0;
+	float4 pos : SV_POSITION;
+	float2 txcoord0 : TEXCOORD0;
 };
 
 uint3 pcg3d(uint3 v)
@@ -32,7 +32,8 @@ float3 TriDither(float2 screenPos, uint frameCount)
 	return (float3(pcg3d(seed1)) - float3(pcg3d(seed2))) / float(0xFFFFFFFFu);
 }
 
-float4 main(PS_INPUT input) : SV_TARGET
+float4 main(PS_INPUT input) :
+	SV_TARGET
 {
 	// Sample by UV, not Load by pixel position -- source and destination can differ in size,
 	// and Load has no resampling so it silently returns 0 past the source's own extent.

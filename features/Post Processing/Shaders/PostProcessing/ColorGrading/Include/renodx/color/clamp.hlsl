@@ -30,7 +30,7 @@ namespace renodx
 					return renodx::color::bt709::from::AP1(ap1);
 				}
 			}  // namespace clamp
-		}  // namespace bt709
+		}      // namespace bt709
 
 		namespace bt2020
 		{
@@ -54,7 +54,7 @@ namespace renodx
 				}
 
 			}  // namespace clamp
-		}  // namespace bt2020
+		}      // namespace bt2020
 
 		namespace ap1
 		{
@@ -77,7 +77,7 @@ namespace renodx
 					return max(0, ap1);
 				}
 			}  // namespace clamp
-		}  // namespace ap1
+		}      // namespace ap1
 
 	}  // namespace color
 }  // namespace renodx

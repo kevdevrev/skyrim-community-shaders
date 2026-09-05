@@ -644,7 +644,7 @@ namespace renodx
 			}
 
 		}  // namespace gamut
-	}  // namespace color
+	}      // namespace color
 }  // namespace renodx
 
 #endif  // SRC_SHADERS_COLOR_GAMUT_HLSL_

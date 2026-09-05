@@ -25,7 +25,8 @@ Texture2D<float4> SrcTex : register(t0);
 SamplerState BilinearSampler : register(s0);
 RWTexture2D<float4> DstTex : register(u0);
 
-[numthreads(8, 8, 1)] void main(uint3 tid : SV_DispatchThreadID) {
+[numthreads(8, 8, 1)] void main(uint3 tid
+								: SV_DispatchThreadID) {
 	// Zero-dim guard: a misconfigured dispatch with any zero extent would
 	// divide-by-zero into NaN UVs and underflow point-mode coords into
 	// huge uint values. Bail before any math.

@@ -2,7 +2,8 @@
 
 RWTexture3D<float4> VBufferA : register(u0);
 
-[numthreads(8, 8, 4)] void main(uint3 dispatchID : SV_DispatchThreadID) {
+[numthreads(8, 8, 4)] void main(uint3 dispatchID
+								: SV_DispatchThreadID) {
 	if (!ExponentialHeightFog::IsInsideVolumetricGrid(dispatchID))
 		return;
 

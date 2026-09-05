@@ -58,7 +58,8 @@ float2 MultiplyAndNormalise(float2 scene, float2 psf, float psfDC)
 	return result / max(psfDC, 1e-6);
 }
 
-[numthreads(8, 8, 1)] void CS_Multiply(uint2 tid : SV_DispatchThreadID) {
+[numthreads(8, 8, 1)] void CS_Multiply(uint2 tid
+									   : SV_DispatchThreadID) {
 	if (tid.x >= FFTResolution || tid.y >= FFTResolution)
 		return;
 

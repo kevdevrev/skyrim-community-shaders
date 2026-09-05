@@ -17,7 +17,9 @@ RWStructuredBuffer<float2> TileDepthRange : register(u0);  // (nearRaw, farRaw) 
 groupshared float gMin[64];
 groupshared float gMax[64];
 
-[numthreads(64, 1, 1)] void main(uint3 groupId : SV_GroupID, uint groupIndex : SV_GroupIndex) {
+[numthreads(64, 1, 1)] void main(uint3 groupId
+								 : SV_GroupID, uint groupIndex
+								 : SV_GroupIndex) {
 	uint2 tileXY = groupId.xy;
 	uint eyeIndex = groupId.z;
 

@@ -9,11 +9,12 @@ cbuffer EyeCropParams : register(b0)
 
 struct PS_INPUT
 {
-	float4 pos: SV_POSITION;
-	float2 txcoord0: TEXCOORD0;
+	float4 pos : SV_POSITION;
+	float2 txcoord0 : TEXCOORD0;
 };
 
-float main(PS_INPUT input) : SV_Target
+float main(PS_INPUT input) :
+	SV_Target
 {
 	return SourceTexture.Load(int3(int(input.pos.x) + int(EyeOffsetX), int(input.pos.y), 0));
 }

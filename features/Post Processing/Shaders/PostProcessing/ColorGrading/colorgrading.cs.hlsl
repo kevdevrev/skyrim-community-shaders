@@ -837,7 +837,8 @@ float3 ApplyLUT(float3 color)
 	return color;
 }
 
-[numthreads(8, 8, 1)] void CSColorGrading(uint2 DTid : SV_DispatchThreadID) {
+[numthreads(8, 8, 1)] void CSColorGrading(uint2 DTid
+										  : SV_DispatchThreadID) {
 	// Game cinematic
 	float3 color = pow(abs(TexColor[DTid].xyz), inOutGamma.z) * cinematic.y;
 	color = Saturation(color, cinematic.x);
@@ -863,7 +864,8 @@ float3 ApplyLUT(float3 color)
 
 RWTexture3D<float4> RWLUT : register(u0);
 
-[numthreads(8, 8, 8)] void CSLUTGen(uint3 DTid : SV_DispatchThreadID) {
+[numthreads(8, 8, 8)] void CSLUTGen(uint3 DTid
+									: SV_DispatchThreadID) {
 	float3 uvw = float3(DTid) / float3((LUT_SIZE - 1).xxx);
 	float4 neutralColor = float4(uvw, 1);
 	float3 linearColor = LogToLinear(neutralColor.xyz) - LogToLinear(0);

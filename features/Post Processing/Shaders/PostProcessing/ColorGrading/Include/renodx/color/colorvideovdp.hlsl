@@ -322,6 +322,6 @@ namespace renodx
 			}
 
 		}  // namespace colorvideovdp
-	}  // namespace color
+	}      // namespace color
 }  // namespace renodx
 #endif  // COLORVIDEOVDP_HLSL

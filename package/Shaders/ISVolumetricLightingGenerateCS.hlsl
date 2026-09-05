@@ -59,7 +59,8 @@ cbuffer PerTechnique : register(b0)
 #	endif
 }
 
-[numthreads(32, 32, 1)] void main(uint3 dispatchID : SV_DispatchThreadID) {
+[numthreads(32, 32, 1)] void main(uint3 dispatchID
+								  : SV_DispatchThreadID) {
 	const float3 StepCoefficients[] = {
 		{ 0, 0, 0 },
 		{ 0, 0, 0.001 },

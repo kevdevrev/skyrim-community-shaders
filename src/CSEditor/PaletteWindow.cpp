@@ -97,7 +97,7 @@ void PaletteWindow::DrawColorsTab()
 				color.z,
 				T(TKEY("click_to_copy"), "Click to copy"),
 				T(TKEY("right_click_to_clear"), "Right-click to clear"))
-					.c_str());
+								 .c_str());
 		} else {
 			// Show empty favorite slot with star
 			ImVec4 emptyColor(0.2f, 0.2f, 0.2f, 1.0f);
@@ -163,7 +163,7 @@ void PaletteWindow::DrawColorsTab()
 				entry->color.x, entry->color.y, entry->color.z,
 				std::vformat(T(TKEY("used_times"), "Used {} times"), std::make_format_args(entry->useCount)),
 				T(TKEY("click_to_copy"), "Click to copy"))
-					.c_str());
+								 .c_str());
 		}
 	}
 	ImGui::Spacing();
@@ -221,7 +221,7 @@ void PaletteWindow::DrawColorsTab()
 				std::vformat(T(TKEY("used_times"), "Used {} times"), std::make_format_args(entry->useCount)),
 				T(TKEY("click_to_copy"), "Click to copy"),
 				T(TKEY("right_click_to_remove"), "Right-click to remove"))
-					.c_str());
+								 .c_str());
 
 			colorIndex++;
 		}
@@ -248,7 +248,7 @@ void PaletteWindow::DrawValuesTab()
 			Util::AddTooltip(std::format("{}\n{}",
 				std::vformat(T(TKEY("used_times"), "Used {} times"), std::make_format_args(entry->useCount)),
 				T(TKEY("click_to_copy"), "Click to copy"))
-					.c_str());
+								 .c_str());
 		}
 	}
 	ImGui::Spacing();
@@ -292,7 +292,7 @@ void PaletteWindow::DrawValuesTab()
 				std::vformat(T(TKEY("used_times"), "Used {} times"), std::make_format_args(entry->useCount)),
 				T(TKEY("click_to_copy"), "Click to copy"),
 				T(TKEY("right_click_to_remove"), "Right-click to remove"))
-					.c_str());
+								 .c_str());
 		}
 	}
 }

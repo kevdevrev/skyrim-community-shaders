@@ -29,7 +29,8 @@ cbuffer VRPostProcessCB : register(b1)
 
 #include "VRStereoOptimizations/modes.hlsli"
 
-[numthreads(8, 8, 1)] void main(uint2 dtid : SV_DispatchThreadID) {
+[numthreads(8, 8, 1)] void main(uint2 dtid
+								: SV_DispatchThreadID) {
 	if (any(dtid >= uint2(FrameDim)))
 		return;
 

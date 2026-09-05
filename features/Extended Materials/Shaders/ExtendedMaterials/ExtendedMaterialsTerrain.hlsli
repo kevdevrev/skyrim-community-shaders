@@ -147,13 +147,13 @@ float4 FinishTerrainHeightQuadBlend(float heightBlend, float4 w1, float2 w2,
 
 // Pass fully scoped PBR::TerrainFlags; FXC does not expand macros inside `::`.
 #	define EM_PBR_DISP_LAYER_SCALAR(N, TILEFLAG, TEX, WGT)                                                                    \
-		[branch] if ((PBRFlags & (TILEFLAG)) != 0 && (WGT) > 0.01 && (WGT) * params[N].HeightScale >= layerGateThreshold)      \
+		[branch] if ((PBRFlags & (TILEFLAG)) != 0 && (WGT) > 0.01 && (WGT)*params[N].HeightScale >= layerGateThreshold)        \
 		{                                                                                                                      \
 			heights[N] = ScaleDisplacement(TerrainParallaxTexSample(TEX, coords, mipLevels[N], sharedOffset, N).x, params[N]); \
 		}
 
 #	define EM_PBR_DISP_LAYER_QUAD(N, TILEFLAG, TEX, WGT)                                                                        \
-		[branch] if ((PBRFlags & (TILEFLAG)) != 0 && (WGT) > 0.01 && (WGT) * params[N].HeightScale >= layerGateThreshold)        \
+		[branch] if ((PBRFlags & (TILEFLAG)) != 0 && (WGT) > 0.01 && (WGT)*params[N].HeightScale >= layerGateThreshold)          \
 		{                                                                                                                        \
 			[unroll] for (uint k = 0; k < 4; k++)                                                                                \
 				h4[k][N] = ScaleDisplacement(TerrainParallaxTexSample(TEX, uvs[k], mipLevels[N], sharedOffset, N).x, params[N]); \
@@ -208,7 +208,7 @@ float4 GetTerrainHeightQuadRayMarch(float screenNoise, PS_INPUT input,
 #else
 
 #	define EM_LEGACY_LAYER_SCALAR(N, THFLAG, THSAMPLER, COLSAMPLER, WGT)                                                                 \
-		if ((WGT) > 0.01 && (WGT) * params[N].HeightScale >= layerGateThreshold) {                                                        \
+		if ((WGT) > 0.01 && (WGT)*params[N].HeightScale >= layerGateThreshold) {                                                          \
 			[branch] if ((Permutation::ExtraFeatureDescriptor & (THFLAG)) != 0)                                                           \
 			{                                                                                                                             \
 				heights[N] = ScaleDisplacement(TerrainParallaxTexSample(THSAMPLER, coords, mipLevels[N], sharedOffset, N).x, params[N]);  \
@@ -220,7 +220,7 @@ float4 GetTerrainHeightQuadRayMarch(float screenNoise, PS_INPUT input,
 		}
 
 #	define EM_LEGACY_LAYER_QUAD(N, THFLAG, THSAMPLER, COLSAMPLER, WGT)                                                                     \
-		if ((WGT) > 0.01 && (WGT) * params[N].HeightScale >= layerGateThreshold) {                                                          \
+		if ((WGT) > 0.01 && (WGT)*params[N].HeightScale >= layerGateThreshold) {                                                            \
 			[branch] if ((Permutation::ExtraFeatureDescriptor & (THFLAG)) != 0)                                                             \
 			{                                                                                                                               \
 				[unroll] for (uint k = 0; k < 4; k++)                                                                                       \

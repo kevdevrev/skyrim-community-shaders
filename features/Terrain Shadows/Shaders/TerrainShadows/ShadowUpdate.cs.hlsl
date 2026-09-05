@@ -69,7 +69,9 @@ uint GetWrappedCoord(int coord, uint dimension)
 	return coord < 0 ? (dimension - magnitude) % dimension : magnitude;
 }
 
-[numthreads(NTHREADS, 1, 1)] void main(const uint gtid : SV_GroupThreadID, const uint gid : SV_GroupID) {
+[numthreads(NTHREADS, 1, 1)] void main(const uint gtid
+									   : SV_GroupThreadID, const uint gid
+									   : SV_GroupID) {
 	uint2 dims;
 	TexHeight.GetDimensions(dims.x, dims.y);
 

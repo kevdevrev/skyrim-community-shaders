@@ -3,12 +3,13 @@
 
 struct VS_OUTPUT
 {
-	float4 Position: SV_POSITION0;
-	float2 TexCoord: TEXCOORD0;
+	float4 Position : SV_POSITION0;
+	float2 TexCoord : TEXCOORD0;
 };
 
 #if defined(VSHADER)
-VS_OUTPUT main(uint vertexID : SV_VertexID)
+VS_OUTPUT main(uint vertexID
+			   : SV_VertexID)
 {
 	VS_OUTPUT output;
 
@@ -60,7 +61,8 @@ float GetResolvedFinalDepth(float rawDepth, float mask)
 	return Math::GetFinalDepth(depth, nearPlane, farPlane);
 }
 
-float4 main(VS_OUTPUT input) : SV_Target0
+float4 main(VS_OUTPUT input) :
+	SV_Target0
 {
 	float2 sampleTexCoord = UnderwaterDepthOfFieldFlags.y != 0.0 ?
 	                            FrameBuffer::GetDynamicResolutionAdjustedScreenPosition(input.TexCoord) :

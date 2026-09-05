@@ -19,7 +19,9 @@ groupshared sh2 sharedG[TOTAL_SAMPLES];
 groupshared sh2 sharedB[TOTAL_SAMPLES];
 
 // Parallelize computation: 16x16 = 256 threads, one per sample
-[numthreads(AXIS_SAMPLE_COUNT, AXIS_SAMPLE_COUNT, 1)] void main(uint3 dispatchID : SV_DispatchThreadID, uint groupIndex : SV_GroupIndex) {
+[numthreads(AXIS_SAMPLE_COUNT, AXIS_SAMPLE_COUNT, 1)] void main(uint3 dispatchID
+																: SV_DispatchThreadID, uint groupIndex
+																: SV_GroupIndex) {
 	// Each thread computes one sample of the spherical integral
 	// Note: No bounds check needed since we dispatch exactly AXIS_SAMPLE_COUNT x AXIS_SAMPLE_COUNT threads
 	uint az = dispatchID.x;

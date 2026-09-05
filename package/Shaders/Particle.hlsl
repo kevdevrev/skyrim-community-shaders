@@ -9,37 +9,37 @@
 
 struct VS_INPUT
 {
-	float4 Position: POSITION0;
+	float4 Position : POSITION0;
 #if !defined(ENVCUBE)
-	float4 Normal: NORMAL0;
+	float4 Normal : NORMAL0;
 #endif
-	float4 TexCoord0: TEXCOORD0;
+	float4 TexCoord0 : TEXCOORD0;
 #if defined(ENVCUBE)
 	float4
 #else
 	int4
 #endif
-		TexCoord1: TEXCOORD1;
+		TexCoord1 : TEXCOORD1;
 #if defined(VR)
-	uint InstanceID: SV_INSTANCEID;
+	uint InstanceID : SV_INSTANCEID;
 #endif  // VR
 };
 
 struct VS_OUTPUT
 {
-	float4 Position: SV_POSITION0;
-	float4 Color: COLOR0;
-	float2 TexCoord0: TEXCOORD0;
+	float4 Position : SV_POSITION0;
+	float4 Color : COLOR0;
+	float2 TexCoord0 : TEXCOORD0;
 #if defined(ENVCUBE)
-	float4 PrecipitationOcclusionTexCoord: TEXCOORD1;
+	float4 PrecipitationOcclusionTexCoord : TEXCOORD1;
 #endif
 #if defined(VR)
-	float ClipDistance: SV_ClipDistance0;  // o11
-	float CullDistance: SV_CullDistance0;  // p11
-	uint EyeIndex: EYEIDX0;
+	float ClipDistance : SV_ClipDistance0;  // o11
+	float CullDistance : SV_CullDistance0;  // p11
+	uint EyeIndex : EYEIDX0;
 #endif  // VR
 #if defined(ENVCUBE) && defined(RAIN) && defined(EFFECTS11)
-	float2 RaindropData: TEXCOORD2;
+	float2 RaindropData : TEXCOORD2;
 #endif
 };
 
@@ -230,8 +230,8 @@ typedef VS_OUTPUT PS_INPUT;
 
 struct PS_OUTPUT
 {
-	float4 Color: SV_Target0;
-	float4 Normal: SV_Target1;
+	float4 Color : SV_Target0;
+	float4 Normal : SV_Target1;
 };
 
 #ifdef PSHADER
@@ -286,7 +286,8 @@ cbuffer PerGeometry : register(b2)
 #		include "DynamicCubemaps/DynamicCubemaps.hlsli"
 #	endif
 
-PS_OUTPUT main(PS_INPUT input, bool frontFace : SV_IsFrontFace)
+PS_OUTPUT main(PS_INPUT input, bool frontFace
+			   : SV_IsFrontFace)
 {
 	PS_OUTPUT psout;
 

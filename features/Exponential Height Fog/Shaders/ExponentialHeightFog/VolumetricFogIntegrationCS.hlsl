@@ -3,7 +3,8 @@ RWTexture3D<float4> IntegratedLightScattering : register(u0);
 
 #include "ExponentialHeightFog/VolumetricFogCSCommon.hlsli"
 
-[numthreads(8, 8, 1)] void main(uint3 dispatchID : SV_DispatchThreadID) {
+[numthreads(8, 8, 1)] void main(uint3 dispatchID
+								: SV_DispatchThreadID) {
 	if (any(dispatchID.xy >= VolumetricFogGridSize.xy))
 		return;
 

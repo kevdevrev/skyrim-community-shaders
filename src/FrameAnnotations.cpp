@@ -1093,7 +1093,7 @@ namespace FrameAnnotations
 		auto renderer = globals::game::renderer;
 
 		for (size_t renderTargetIndex = 0;
-			renderTargetIndex < Util::GetRenderTargetCount(); ++renderTargetIndex) {
+			 renderTargetIndex < Util::GetRenderTargetCount(); ++renderTargetIndex) {
 			const auto renderTargetName = magic_enum::enum_name(
 				static_cast<RE::RENDER_TARGETS::RENDER_TARGET>(renderTargetIndex));
 			if (auto texture = renderer->GetRuntimeData().renderTargets[renderTargetIndex].texture) {
@@ -1103,8 +1103,8 @@ namespace FrameAnnotations
 		}
 
 		for (size_t renderTargetIndex = 0;
-			renderTargetIndex < RE::RENDER_TARGETS_CUBEMAP::kTOTAL;
-			++renderTargetIndex) {
+			 renderTargetIndex < RE::RENDER_TARGETS_CUBEMAP::kTOTAL;
+			 ++renderTargetIndex) {
 			const auto renderTargetName = magic_enum::enum_name(
 				static_cast<RE::RENDER_TARGETS_CUBEMAP::RENDER_TARGET_CUBEMAP>(renderTargetIndex));
 			if (auto texture = renderer->GetRendererData().cubemapRenderTargets[renderTargetIndex].texture) {
@@ -1114,8 +1114,8 @@ namespace FrameAnnotations
 		}
 
 		for (size_t renderTargetIndex = 0;
-			renderTargetIndex < Util::GetDepthStencilCount();
-			++renderTargetIndex) {
+			 renderTargetIndex < Util::GetDepthStencilCount();
+			 ++renderTargetIndex) {
 			const auto renderTargetName = magic_enum::enum_name(
 				static_cast<RE::RENDER_TARGETS_DEPTHSTENCIL::RENDER_TARGET_DEPTHSTENCIL>(
 					renderTargetIndex));

@@ -11,7 +11,8 @@ cbuffer BorderCB : register(b1)
 	float4 Scale;        // xyzw: up, down, left, right
 };
 
-[numthreads(8, 8, 1)] void main(uint3 DTid : SV_DispatchThreadID) {
+[numthreads(8, 8, 1)] void main(uint3 DTid
+								: SV_DispatchThreadID) {
 	// This shader runs before upscaling, so account for dynamic resolution.
 	float2 dynResDim = SharedData::BufferDim.xy * FrameBuffer::DynamicResolutionParams1.xy;
 

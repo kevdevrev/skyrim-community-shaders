@@ -76,7 +76,8 @@ struct ShaderTestEntry
 	uint32_t threadZ = 1;
 };
 
-#define TEST_ENTRY(name, tags, function) ShaderTestEntry{ name, tags, function, 1, 1, 1 }
+#define TEST_ENTRY(name, tags, function) \
+	ShaderTestEntry { name, tags, function, 1, 1, 1 }
 #define TEST_ENTRY_PARALLEL(name, tags, function, x, y, z) \
 	ShaderTestEntry { name, tags, function, x, y, z }
 

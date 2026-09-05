@@ -13,7 +13,8 @@ cbuffer BorderCB : register(b1)
 	float4 Scale;        // xyzw: up, down, left, right
 };
 
-[numthreads(8, 8, 1)] void main(uint3 DTid : SV_DispatchThreadID) {
+[numthreads(8, 8, 1)] void main(uint3 DTid
+								: SV_DispatchThreadID) {
 	float depth = DepthTexture[DTid.xy];
 	float3 borderColor = BorderColor.xyz;
 	float depthThreshold = BorderColor.w;

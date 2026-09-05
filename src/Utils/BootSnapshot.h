@@ -14,7 +14,7 @@ namespace Util::Settings
 	namespace detail
 	{
 		template <typename SettingsT, typename T>
-		size_t MemberOffset(T SettingsT::* member) noexcept
+		size_t MemberOffset(T SettingsT::*member) noexcept
 		{
 			static_assert(std::is_default_constructible_v<SettingsT>);
 			SettingsT tmp{};
@@ -88,7 +88,7 @@ namespace Util::Settings
 		}
 
 		template <typename T>
-		const T& Boot(T SettingsT::* member) const noexcept
+		const T& Boot(T SettingsT::*member) const noexcept
 		{
 			static const T kZero{};
 			if (!latched_) {
@@ -102,7 +102,7 @@ namespace Util::Settings
 		// compare. All registered restart fields are bool/uint/float/enum (no
 		// padding); constrain with has_unique_object_representations_v if that changes.
 		template <typename T>
-		bool HasPendingChange(const SettingsT& live, T SettingsT::* member) const noexcept
+		bool HasPendingChange(const SettingsT& live, T SettingsT::*member) const noexcept
 		{
 			// SettingsT may hold std::string, but a registered restart field must be
 			// trivially copyable -- memcmp on a std::string compares control blocks, not text.
@@ -139,7 +139,7 @@ namespace Util::Settings
 		}
 
 		template <typename T>
-		const RestartFieldInfo* FindField(T SettingsT::* member) const noexcept
+		const RestartFieldInfo* FindField(T SettingsT::*member) const noexcept
 		{
 			const size_t offset = detail::MemberOffset(member);
 			const size_t size = sizeof(T);

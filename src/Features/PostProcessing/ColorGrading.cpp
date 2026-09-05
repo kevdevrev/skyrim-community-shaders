@@ -51,7 +51,7 @@ namespace
 	{
 		const char* id;
 		const char* label;
-		float4 ColorSettings::* value;
+		float4 ColorSettings::*value;
 		float min;
 		float max;
 		const char* format;

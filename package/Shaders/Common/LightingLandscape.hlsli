@@ -62,7 +62,7 @@ namespace LandscapeLayers
 #	else
 #		if defined(SNOW)
 #			define LIGHTING_LAND_SNOW_ACCUM(SNOW_COMPONENT) \
-				landSnowMask += (SNOW_COMPONENT) * weight * GetLandSnowMaskValue(landColor.w);
+				landSnowMask += (SNOW_COMPONENT)*weight * GetLandSnowMaskValue(landColor.w);
 #		else
 #			define LIGHTING_LAND_SNOW_ACCUM(SNOW_COMPONENT)
 #		endif

@@ -488,7 +488,7 @@ namespace renodx
 				return color;
 			}
 		}  // namespace aces
-	}  // namespace tonemap
+	}      // namespace tonemap
 }  // namespace renodx
 
 #endif  // SRC_SHADERS_ACES_HLSL_

@@ -1046,7 +1046,7 @@ namespace Util
 	namespace UI
 	{
 		template <typename SettingsT, typename T>
-		inline void DrawSettingDiff(const Util::Settings::BootSnapshot<SettingsT>& snapshot, const SettingsT& live, T SettingsT::* field)
+		inline void DrawSettingDiff(const Util::Settings::BootSnapshot<SettingsT>& snapshot, const SettingsT& live, T SettingsT::*field)
 		{
 			if (!snapshot.IsLatched()) {
 				return;
@@ -1131,7 +1131,7 @@ namespace Util
 		template <typename SettingsT, typename T>
 		inline void RestartGatedAnnotate(const Util::Settings::BootSnapshot<SettingsT>& snapshot,
 			const SettingsT& live,
-			T SettingsT::* field,
+			T SettingsT::*field,
 			const char* tooltipBody = nullptr)
 		{
 			if (auto _tt = Util::HoverTooltipWrapper()) {
@@ -1153,7 +1153,7 @@ namespace Util
 			requires std::invocable<Body&>
 		inline void RestartGatedAnnotate(const Util::Settings::BootSnapshot<SettingsT>& snapshot,
 			const SettingsT& live,
-			T SettingsT::* field,
+			T SettingsT::*field,
 			Body&& body)
 		{
 			if (auto _tt = Util::HoverTooltipWrapper()) {
@@ -1427,7 +1427,8 @@ namespace Util
 
 		TableInputEvent(TableInputEventType t, std::function<void(const T&)> cb,
 			const std::string& lbl = "", int btn = 0, ImGuiKey k = ImGuiKey_None) :
-			type(t), mouseButton(btn), key(k), label(lbl), callback(cb) {}
+			type(t),
+			mouseButton(btn), key(k), label(lbl), callback(cb) {}
 	};
 
 	/**

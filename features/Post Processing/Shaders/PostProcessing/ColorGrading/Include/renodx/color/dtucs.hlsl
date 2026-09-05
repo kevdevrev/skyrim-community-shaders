@@ -56,7 +56,7 @@ namespace renodx
 						return value;
 					}
 				}  // namespace from
-			}  // namespace uvY
+			}      // namespace uvY
 
 			namespace jch
 			{
@@ -78,7 +78,7 @@ namespace renodx
 						return float3(J, C, H);
 					}
 				}  // from
-			}  // jch
+			}      // jch
 
 			namespace hcb
 			{
@@ -96,7 +96,7 @@ namespace renodx
 						return float3(H, C, B);
 					}
 				}  // from
-			}  // hcb
+			}      // hcb
 
 			namespace hsb
 			{
@@ -114,7 +114,7 @@ namespace renodx
 						return float3(H, S, B);
 					}
 				}  // from
-			}  // hsb
+			}      // hsb
 
 		}  // namespace dtucs
 
@@ -190,8 +190,8 @@ namespace renodx
 					}
 
 				}  // dtucs
-			}  // namespace from
-		}  // namespace bt709
-	}  // namespace color
+			}      // namespace from
+		}          // namespace bt709
+	}              // namespace color
 }  // namespace renodx
 #endif  // RENODX_SHADERS_COLOR_DTUCS_HLSL

@@ -228,7 +228,8 @@ void Deferred::ReflectionsPrepasses()
 
 	globals::game::stateUpdateFlags->set(RE::BSGraphics::ShaderFlags::DIRTY_RENDERTARGET);  // Run OMSetRenderTargets again
 
-	Feature::ForEachLoadedFeature("ReflectionsPrepass", [](Feature* feature) { feature->ReflectionsPrepass(); }, true);
+	Feature::ForEachLoadedFeature(
+		"ReflectionsPrepass", [](Feature* feature) { feature->ReflectionsPrepass(); }, true);
 }
 
 void Deferred::EarlyPrepasses()
@@ -250,7 +251,8 @@ void Deferred::EarlyPrepasses()
 	// Shadow maps have just been rendered — upload BSShadowDirectionalLight data to t98.
 	CopyShadowLightData();
 
-	Feature::ForEachLoadedFeature("EarlyPrepass", [](Feature* feature) { feature->EarlyPrepass(); }, true);
+	Feature::ForEachLoadedFeature(
+		"EarlyPrepass", [](Feature* feature) { feature->EarlyPrepass(); }, true);
 }
 
 void Deferred::PrepassPasses()
@@ -269,7 +271,8 @@ void Deferred::PrepassPasses()
 	// iterate their caches, so the clear can't race the menu/Prepass iteration.
 	Feature::DrainSceneTransitions();
 
-	Feature::ForEachLoadedFeature("Prepass", [](Feature* feature) { feature->Prepass(); }, true);
+	Feature::ForEachLoadedFeature(
+		"Prepass", [](Feature* feature) { feature->Prepass(); }, true);
 }
 
 void Deferred::StartDeferred()

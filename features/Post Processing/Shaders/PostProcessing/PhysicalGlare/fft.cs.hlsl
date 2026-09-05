@@ -78,7 +78,9 @@ float2 Twiddle(uint k, uint N)
 
 // Each group processes one row or column. FFT_SIZE exactly matches N for the
 // selected shader variant, so every launched thread contributes useful work.
-[numthreads(FFT_SIZE, 1, 1)] void CS_FFT(uint3 groupId : SV_GroupID, uint threadIdx : SV_GroupThreadID) {
+[numthreads(FFT_SIZE, 1, 1)] void CS_FFT(uint3 groupId
+										 : SV_GroupID, uint threadIdx
+										 : SV_GroupThreadID) {
 	uint lineIdx = groupId.x;  // which row or column
 	const uint N = FFT_SIZE;
 

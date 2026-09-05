@@ -18,7 +18,8 @@ cbuffer PerFrame : register(b0)
 	float fgTweenMenuMidAlphaBoost : packoffset(c1.w);  ///< 1 = TweenMenu open: apply mid-alpha AA boost only for pause UI
 }
 
-[numthreads(8, 8, 1)] void main(uint3 dispatchID : SV_DispatchThreadID) {
+[numthreads(8, 8, 1)] void main(uint3 dispatchID
+								: SV_DispatchThreadID) {
 	// Bounds check to prevent UAV out-of-bounds reads/writes
 	uint width, height;
 	UITex.GetDimensions(width, height);

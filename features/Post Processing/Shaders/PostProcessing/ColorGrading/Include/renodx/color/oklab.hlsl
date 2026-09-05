@@ -32,7 +32,7 @@ namespace renodx
 					return mul(OKLABLMS_2_BT709, lms);
 				}
 			}  // namespace from
-		}  // namespace bt709
+		}      // namespace bt709
 
 		namespace oklab
 		{
@@ -66,7 +66,7 @@ namespace renodx
 					return float3(l, c * cos(h), c * sin(h));
 				}
 			}  // namespace from
-		}  // namespace oklab
+		}      // namespace oklab
 
 		namespace oklch
 		{
@@ -85,7 +85,7 @@ namespace renodx
 					return OkLab(ok_lab);
 				}
 			}  // namespace from
-		}  // namespace oklch
+		}      // namespace oklch
 
 		namespace bt709
 		{
@@ -98,7 +98,7 @@ namespace renodx
 				}
 
 			}  // namespace from
-		}  // namespace bt709
+		}      // namespace bt709
 
 	}  // namespace color
 }  // namespace renodx

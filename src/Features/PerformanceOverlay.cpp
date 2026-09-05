@@ -1511,11 +1511,13 @@ std::vector<ColumnConfig> PerformanceOverlay::BuildDrawCallTableColumns(const Me
 
 	columns.push_back(ColumnConfig{
 		legends.frameTime.header,
-		MakeMetricColumn(theme, [](const DrawCallRow& row) { return row.frameTime; }, [](const auto& theme, float value, const DrawCallRow& row) {
+		MakeMetricColumn(
+			theme, [](const DrawCallRow& row) { return row.frameTime; }, [](const auto& theme, float value, const DrawCallRow& row) {
 			if (magic_enum::enum_cast<SpecialShaderType>(row.shaderType).has_value()) {
 				return theme.Palette.Text;
 			}
-			return Util::GetThresholdColor(value, PerformanceOverlay::Settings::kFrameTimeGoodThreshold, PerformanceOverlay::Settings::kFrameTimeWarningThreshold, theme.StatusPalette.SuccessColor, theme.StatusPalette.Warning, theme.StatusPalette.Error); }, [](float /*value*/, const DrawCallRow& row) { return Util::FormatMilliseconds(row.frameTime) + " (" + Util::FormatPercent(row.percent) + ")"; }, legends.frameTime.tooltip), [](const DrawCallRow& a, const DrawCallRow& b, bool asc) { return asc ? (a.percent < b.percent) : (a.percent > b.percent); }, [legends]() {
+			return Util::GetThresholdColor(value, PerformanceOverlay::Settings::kFrameTimeGoodThreshold, PerformanceOverlay::Settings::kFrameTimeWarningThreshold, theme.StatusPalette.SuccessColor, theme.StatusPalette.Warning, theme.StatusPalette.Error); }, [](float /*value*/, const DrawCallRow& row) { return Util::FormatMilliseconds(row.frameTime) + " (" + Util::FormatPercent(row.percent) + ")"; }, legends.frameTime.tooltip),
+		[](const DrawCallRow& a, const DrawCallRow& b, bool asc) { return asc ? (a.percent < b.percent) : (a.percent > b.percent); }, [legends]() {
 			 if (ImGui::IsItemHovered()) {
 				 if (auto _tt = Util::HoverTooltipWrapper()) {
 					 Util::DrawColoredMultiLineTooltip(legends.frameTime.tooltip);
@@ -1524,11 +1526,13 @@ std::vector<ColumnConfig> PerformanceOverlay::BuildDrawCallTableColumns(const Me
 
 	columns.push_back(ColumnConfig{
 		legends.costPerCall.header,
-		MakeMetricColumn(theme, [](const DrawCallRow& row) { return row.costPerCall; }, [](const auto& theme, float value, const DrawCallRow& row) {
+		MakeMetricColumn(
+			theme, [](const DrawCallRow& row) { return row.costPerCall; }, [](const auto& theme, float value, const DrawCallRow& row) {
 			if (magic_enum::enum_cast<SpecialShaderType>(row.shaderType).has_value()) {
 				return theme.Palette.Text;
 			}
-			return Util::GetThresholdColor(value, PerformanceOverlay::Settings::kCostPerCallGoodThreshold, PerformanceOverlay::Settings::kCostPerCallWarningThreshold, theme.StatusPalette.SuccessColor, theme.StatusPalette.Warning, theme.StatusPalette.Error); }, [](float value, const DrawCallRow&) { return (value < PerformanceOverlay::Settings::kMicrosecondThreshold && value > 0.0f) ? Util::FormatMicroseconds(value * 1000.0f) : Util::FormatMilliseconds(value); }, legends.costPerCall.tooltip), [](const DrawCallRow& a, const DrawCallRow& b, bool asc) { return asc ? (a.costPerCall < b.costPerCall) : (a.costPerCall > b.costPerCall); }, [legends]() {
+			return Util::GetThresholdColor(value, PerformanceOverlay::Settings::kCostPerCallGoodThreshold, PerformanceOverlay::Settings::kCostPerCallWarningThreshold, theme.StatusPalette.SuccessColor, theme.StatusPalette.Warning, theme.StatusPalette.Error); }, [](float value, const DrawCallRow&) { return (value < PerformanceOverlay::Settings::kMicrosecondThreshold && value > 0.0f) ? Util::FormatMicroseconds(value * 1000.0f) : Util::FormatMilliseconds(value); }, legends.costPerCall.tooltip),
+		[](const DrawCallRow& a, const DrawCallRow& b, bool asc) { return asc ? (a.costPerCall < b.costPerCall) : (a.costPerCall > b.costPerCall); }, [legends]() {
 			 if (ImGui::IsItemHovered()) {
 				 if (auto _tt = Util::HoverTooltipWrapper()) {
 					 Util::DrawColoredMultiLineTooltip(legends.costPerCall.tooltip);
@@ -1539,12 +1543,14 @@ std::vector<ColumnConfig> PerformanceOverlay::BuildDrawCallTableColumns(const Me
 	if (anyTestData) {
 		columns.push_back(ColumnConfig{
 			legends.testFrameTime.header,
-			MakeMetricColumn(theme, [](const DrawCallRow& row) { return row.testFrameTime; }, [](const auto& theme, float value, const DrawCallRow& row) {
+			MakeMetricColumn(
+				theme, [](const DrawCallRow& row) { return row.testFrameTime; }, [](const auto& theme, float value, const DrawCallRow& row) {
 					 if (value < row.frameTime)
 						 return theme.StatusPalette.SuccessColor;
 					 if (value > row.frameTime)
 						 return theme.StatusPalette.Error;
-					 return theme.Palette.Text; }, [this](float value, const DrawCallRow& row) { return Util::FormatMilliseconds(value) + " (" + Util::FormatPercent(testData[row.shaderType].percent) + ")"; }, legends.testFrameTime.tooltip), [](const DrawCallRow& a, const DrawCallRow& b, bool asc) {
+					 return theme.Palette.Text; }, [this](float value, const DrawCallRow& row) { return Util::FormatMilliseconds(value) + " (" + Util::FormatPercent(testData[row.shaderType].percent) + ")"; }, legends.testFrameTime.tooltip),
+			[](const DrawCallRow& a, const DrawCallRow& b, bool asc) {
 				 float aVal = a.testFrameTime.value_or(FLT_MAX);
 				 float bVal = b.testFrameTime.value_or(FLT_MAX);
 				 return asc ? (aVal < bVal) : (aVal > bVal); }, [legends]() {
@@ -1556,12 +1562,14 @@ std::vector<ColumnConfig> PerformanceOverlay::BuildDrawCallTableColumns(const Me
 
 		columns.push_back(ColumnConfig{
 			legends.testCostPerCall.header,
-			MakeMetricColumn(theme, [](const DrawCallRow& row) { return row.testCostPerCall; }, [](const auto& theme, float value, const DrawCallRow& row) {
+			MakeMetricColumn(
+				theme, [](const DrawCallRow& row) { return row.testCostPerCall; }, [](const auto& theme, float value, const DrawCallRow& row) {
 					 if (value < row.costPerCall)
 						 return theme.StatusPalette.SuccessColor;
 					 if (value > row.costPerCall)
 						 return theme.StatusPalette.Error;
-					 return theme.Palette.Text; }, [](float value, const DrawCallRow&) { return (value < PerformanceOverlay::Settings::kMicrosecondThreshold && value > 0.0f) ? Util::FormatMicroseconds(value * 1000.0f) : Util::FormatMilliseconds(value); }, legends.testCostPerCall.tooltip), [](const DrawCallRow& a, const DrawCallRow& b, bool asc) {
+					 return theme.Palette.Text; }, [](float value, const DrawCallRow&) { return (value < PerformanceOverlay::Settings::kMicrosecondThreshold && value > 0.0f) ? Util::FormatMicroseconds(value * 1000.0f) : Util::FormatMilliseconds(value); }, legends.testCostPerCall.tooltip),
+			[](const DrawCallRow& a, const DrawCallRow& b, bool asc) {
 				 float aVal = a.testCostPerCall.value_or(FLT_MAX);
 				 float bVal = b.testCostPerCall.value_or(FLT_MAX);
 				 return asc ? (aVal < bVal) : (aVal > bVal); }, [legends]() {

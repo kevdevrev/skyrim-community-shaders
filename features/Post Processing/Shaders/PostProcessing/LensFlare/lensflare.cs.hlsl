@@ -86,7 +86,8 @@ float DiscMask(float2 screenPos)
 // Pass 1: CSThreshold — 13-tap CoD-style downsample + threshold
 // Input: full-res scene (t0), Output: half-res thresholded buffer (u0)
 // ============================================================
-[numthreads(8, 8, 1)] void CSThreshold(uint3 DTid : SV_DispatchThreadID) {
+[numthreads(8, 8, 1)] void CSThreshold(uint3 DTid
+									   : SV_DispatchThreadID) {
 	if (DTid.x >= (uint)OutputWidth || DTid.y >= (uint)OutputHeight)
 		return;
 
@@ -127,7 +128,8 @@ float DiscMask(float2 screenPos)
 	// Pass 2: CSGhostHalo — ghosts + fisheye halo from threshold buffer
 	// Input: half-res threshold (t0), Output: half-res ghost+halo (u0)
 	// ============================================================
-	[numthreads(8, 8, 1)] void CSGhostHalo(uint3 DTid : SV_DispatchThreadID)
+	[numthreads(8, 8, 1)] void CSGhostHalo(uint3 DTid
+										   : SV_DispatchThreadID)
 {
 	if (DTid.x >= (uint)OutputWidth || DTid.y >= (uint)OutputHeight)
 		return;
@@ -205,7 +207,8 @@ float DiscMask(float2 screenPos)
 // Pass 3a: Kawase blur downsample — half res → quarter res
 // Proper UV-based sampling between actual different-resolution textures
 // ============================================================
-[numthreads(8, 8, 1)] void CSFlareDown(uint3 DTid : SV_DispatchThreadID) {
+[numthreads(8, 8, 1)] void CSFlareDown(uint3 DTid
+									   : SV_DispatchThreadID) {
 	if (DTid.x >= (uint)OutputWidth || DTid.y >= (uint)OutputHeight)
 		return;
 
@@ -225,7 +228,8 @@ float DiscMask(float2 screenPos)
 	// ============================================================
 	// Pass 3b: Kawase blur upsample — quarter res → half res
 	// ============================================================
-	[numthreads(8, 8, 1)] void CSFlareUp(uint3 DTid : SV_DispatchThreadID)
+	[numthreads(8, 8, 1)] void CSFlareUp(uint3 DTid
+										 : SV_DispatchThreadID)
 {
 	if (DTid.x >= (uint)OutputWidth || DTid.y >= (uint)OutputHeight)
 		return;
@@ -287,7 +291,8 @@ float3 SampleBicubicCatmullRom(Texture2D<float4> tex, SamplerState samp, float2 
 	return max(result, 0.0);
 }
 
-[numthreads(8, 8, 1)] void CSMix(uint3 DTid : SV_DispatchThreadID) {
+[numthreads(8, 8, 1)] void CSMix(uint3 DTid
+								 : SV_DispatchThreadID) {
 	if (DTid.x >= (uint)OutputWidth || DTid.y >= (uint)OutputHeight)
 		return;
 

@@ -9,8 +9,10 @@ namespace SphericalHarmonics
 		float c0;    /**< @brief L=0 (DC / constant) coefficient. */
 		float c1[3]; /**< @brief L=1 coefficients for M=-1, M=0, M=1. */
 
-		SH2() : c0(0.0f), c1{ 0.0f, 0.0f, 0.0f } {}
-		SH2(float _c0, float _c1_0, float _c1_1, float _c1_2) : c0(_c0), c1{ _c1_0, _c1_1, _c1_2 } {}
+		SH2() :
+			c0(0.0f), c1{ 0.0f, 0.0f, 0.0f } {}
+		SH2(float _c0, float _c1_0, float _c1_1, float _c1_2) :
+			c0(_c0), c1{ _c1_0, _c1_1, _c1_2 } {}
 	};
 
 	/** @brief Per-channel (RGB) second-order spherical harmonics. */
@@ -20,12 +22,15 @@ namespace SphericalHarmonics
 		SH2 g;
 		SH2 b;
 
-		SH2Color() : r(), g(), b() {}
+		SH2Color() :
+			r(), g(), b() {}
 
 		/** @brief Construct with the same SH coefficients for all three channels. */
-		explicit SH2Color(const SH2& sh) : r(sh), g(sh), b(sh) {}
+		explicit SH2Color(const SH2& sh) :
+			r(sh), g(sh), b(sh) {}
 
-		SH2Color(SH2 _r, SH2 _g, SH2 _b) : r(_r), g(_g), b(_b) {}
+		SH2Color(SH2 _r, SH2 _g, SH2 _b) :
+			r(_r), g(_g), b(_b) {}
 	};
 
 	/**

@@ -19,7 +19,8 @@ RWTexture2D<float2> MotionVectorOutput : register(u2);
 RWTexture2D<float> DepthOutput : register(u3);
 #endif
 
-[numthreads(8, 8, 1)] void main(uint3 dispatchID : SV_DispatchThreadID) {
+[numthreads(8, 8, 1)] void main(uint3 dispatchID
+								: SV_DispatchThreadID) {
 	// Bounds check in per-eye space; EyeOffsetX=0 makes this identical to the old path for non-VR
 	if (any(dispatchID.xy >= uint2(TrueSamplingDim)))
 		return;

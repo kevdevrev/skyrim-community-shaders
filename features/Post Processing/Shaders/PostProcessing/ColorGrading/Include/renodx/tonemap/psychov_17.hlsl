@@ -1242,7 +1242,7 @@ namespace renodx
 			}
 
 		}  // namespace psycho
-	}  // namespace tonemap
+	}      // namespace tonemap
 }  // namespace renodx
 
 #endif  // RENODX_SHADERS_TONEMAP_PSYCHOV_17_HLSL_

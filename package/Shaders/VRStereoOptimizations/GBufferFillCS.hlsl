@@ -35,7 +35,8 @@ RWTexture2D<float3> ReflectanceRW : register(u5);            // R11G11B10
 RWTexture2D<float3> MasksRW : register(u6);                  // R11G11B10
 RWTexture2D<unorm float> Masks2RW : register(u7);            // R16_UNORM
 
-[numthreads(8, 8, 1)] void main(uint2 dtid : SV_DispatchThreadID) {
+[numthreads(8, 8, 1)] void main(uint2 dtid
+								: SV_DispatchThreadID) {
 	const uint eyeWidth = uint(FrameDim.x) / 2;
 	if (dtid.x >= eyeWidth || dtid.y >= uint(FrameDim.y))
 		return;

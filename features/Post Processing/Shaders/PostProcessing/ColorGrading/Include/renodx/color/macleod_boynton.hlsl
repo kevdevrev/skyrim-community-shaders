@@ -198,7 +198,7 @@ namespace renodx
 				}
 
 			}  // namespace from
-		}  // namespace lms
+		}      // namespace lms
 
 		namespace bt709
 		{
@@ -215,7 +215,7 @@ namespace renodx
 					return bt709::from::MacLeodBoynton(mb_3.xy, mb_3.z);
 				}
 			}  // namespace from
-		}  // namespace bt709
+		}      // namespace bt709
 
 		namespace bt2020
 		{
@@ -232,7 +232,7 @@ namespace renodx
 					return bt2020::from::MacLeodBoynton(mb_3.xy, mb_3.z);
 				}
 			}  // namespace from
-		}  // namespace bt2020
+		}      // namespace bt2020
 
 	}  // namespace color
 }  // namespace renodx

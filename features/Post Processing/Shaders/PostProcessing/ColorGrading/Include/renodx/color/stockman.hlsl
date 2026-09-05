@@ -63,7 +63,7 @@ namespace renodx
 					return bt709;
 				}
 			}  // namespace from
-		}  // namespace bt709
+		}      // namespace bt709
 
 		namespace stockmandkl
 		{
@@ -114,7 +114,7 @@ namespace renodx
 					return dkl;
 				}
 			}  // namespace from
-		}  // namespace stockmandkl
+		}      // namespace stockmandkl
 
 	}  // namespace color
 }  // namespace renodx

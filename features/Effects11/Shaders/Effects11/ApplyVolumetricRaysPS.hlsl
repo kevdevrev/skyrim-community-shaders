@@ -18,8 +18,8 @@ cbuffer VLData : register(b1)
 
 struct VS_OUTPUT_POST
 {
-	float4 pos: SV_POSITION;
-	float2 txcoord0: TEXCOORD0;
+	float4 pos : SV_POSITION;
+	float2 txcoord0 : TEXCOORD0;
 };
 
 // Joint bilateral upsample of the half-res scattering: four bilinear taps weighted by
@@ -53,7 +53,8 @@ float UpsampleScattering(float2 fullResPixel, float fullResDepth)
 	return weightedSum / weightSum;
 }
 
-float4 main(VS_OUTPUT_POST input) : SV_Target0
+float4 main(VS_OUTPUT_POST input) :
+	SV_Target0
 {
 	// GetDepth/CameraViewProjInverse need per-eye mono UV, not packed SBS -- UpsampleScattering
 	// stays on raw SBS pixel space above since it only taps local neighbors.

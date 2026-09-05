@@ -59,7 +59,8 @@ float4 SampleCrossDepths(float2 centerUV, float2 step, float2 texScale, uint eye
 
 // LinearToRawDepth lives in ScreenSpaceGI/StereoReproject.hlsli (shared with reproject/gi).
 
-[numthreads(8, 8, 1)] void main(uint2 dtid : SV_DispatchThreadID) {
+[numthreads(8, 8, 1)] void main(uint2 dtid
+								: SV_DispatchThreadID) {
 	const float2 outFrameDim = OUT_FRAME_DIM;
 	if (any(dtid >= uint2(outFrameDim)))
 		return;

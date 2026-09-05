@@ -2,7 +2,8 @@
 
 RWTexture2D<float> ConservativeDepthTexture : register(u0);
 
-[numthreads(8, 8, 1)] void main(uint3 dispatchID : SV_DispatchThreadID) {
+[numthreads(8, 8, 1)] void main(uint3 dispatchID
+								: SV_DispatchThreadID) {
 	if (any(dispatchID.xy >= VolumetricFogGridSize.xy))
 		return;
 

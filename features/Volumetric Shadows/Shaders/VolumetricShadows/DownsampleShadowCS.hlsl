@@ -21,7 +21,9 @@ static const uint CASCADE = 1;
 static const uint CASCADE = 0;
 #endif
 
-[numthreads(8, 8, 1)] void main(uint3 dispatchThreadID : SV_DispatchThreadID, uint3 groupThreadID : SV_GroupThreadID) {
+[numthreads(8, 8, 1)] void main(uint3 dispatchThreadID
+								: SV_DispatchThreadID, uint3 groupThreadID
+								: SV_GroupThreadID) {
 	uint2 pixCoord = dispatchThreadID.xy * 2;
 
 	uint inputW, inputH, inputSlices;

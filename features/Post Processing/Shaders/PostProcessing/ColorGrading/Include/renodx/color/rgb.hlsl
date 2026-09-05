@@ -275,7 +275,7 @@ namespace renodx
 				}
 
 			}  // namespace from
-		}  // namespace xyz
+		}      // namespace xyz
 
 		namespace xfyfzf
 		{
@@ -294,7 +294,7 @@ namespace renodx
 					return mul(STOCKMAN_SHARP_LMS_TO_XFYFZF_MAT, mul(XYZ_TO_STOCKMAN_SHARP_LMS_MAT, mul(BT2020_TO_XYZ_MAT, bt2020)));
 				}
 			}  // namespace from
-		}  // namespace xfyfzf
+		}      // namespace xfyfzf
 
 		namespace yf
 		{
@@ -313,7 +313,7 @@ namespace renodx
 					return xfyfzf::from::BT2020(bt2020).y;
 				}
 			}  // namespace from
-		}  // namespace yf
+		}      // namespace yf
 
 		namespace xyY
 		{
@@ -339,7 +339,7 @@ namespace renodx
 					return xyY::from::XYZ(XYZ);
 				}
 			}  // namespace from
-		}  // namespace xyY
+		}      // namespace xyY
 
 		namespace bt709
 		{
@@ -400,7 +400,7 @@ namespace renodx
 				}
 
 			}  // namespace from
-		}  // namespace bt709
+		}      // namespace bt709
 
 		namespace bt2020
 		{
@@ -427,7 +427,7 @@ namespace renodx
 				}
 
 			}  // namespace from
-		}  // namespace bt2020
+		}      // namespace bt2020
 
 		namespace ap1
 		{
@@ -443,7 +443,7 @@ namespace renodx
 					return mul(BT2020_TO_AP1_MAT, bt2020);
 				}
 			}  // namespace from
-		}  // namespace ap1
+		}      // namespace ap1
 
 		namespace y
 		{
@@ -473,7 +473,7 @@ namespace renodx
 					return XYZMatrix(ap1, AP1_TO_XYZ_MAT);
 				}
 			}  // namespace from
-		}  // namespace y
+		}      // namespace y
 
 		namespace luma
 		{
@@ -484,7 +484,7 @@ namespace renodx
 					return y::from::NTSC1953(bt601);
 				}
 			}  // namespace from
-		}  // namespace luma
+		}      // namespace luma
 
 		namespace lms
 		{
@@ -520,7 +520,7 @@ namespace renodx
 					return XYWhite(renodx::color::WHITE_POINT_E, white_level);
 				}
 			}  // namespace from
-		}  // namespace lms
+		}      // namespace lms
 
 		namespace bt2408
 		{

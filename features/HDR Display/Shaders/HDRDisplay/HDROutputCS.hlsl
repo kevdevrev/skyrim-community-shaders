@@ -25,7 +25,8 @@ cbuffer PerFrame : register(b0)
 	float applyAutoHDR : packoffset(c2.y);              ///< 1.0 = Effects11 replaced ISHDR, so expand its SDR result into HDR
 }
 
-[numthreads(8, 8, 1)] void main(uint3 dispatchID : SV_DispatchThreadID) {
+[numthreads(8, 8, 1)] void main(uint3 dispatchID
+								: SV_DispatchThreadID) {
 	uint width, height;
 	HDROutput.GetDimensions(width, height);
 	if (dispatchID.x >= width || dispatchID.y >= height)

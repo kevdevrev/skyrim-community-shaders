@@ -13,8 +13,8 @@ cbuffer CameraMotionVectorsCB : register(b1)
 
 struct PS_INPUT
 {
-	float4 Position: SV_POSITION;
-	float2 TexCoord: TEXCOORD;
+	float4 Position : SV_POSITION;
+	float2 TexCoord : TEXCOORD;
 };
 
 static const float2 kNDCToUVVelocityScale = float2(-0.5, 0.5);
@@ -22,7 +22,8 @@ static const float2 kNDCToUVVelocityScale = float2(-0.5, 0.5);
 // Camera-only reprojection for frames where no geometry pass writes motion vectors
 // (the main menu). Only the camera moves there, so depth + the view-proj delta
 // fully determine each pixel's motion. Not a substitute for geometry MVs in gameplay.
-float2 main(PS_INPUT input) : SV_Target
+float2 main(PS_INPUT input) :
+	SV_Target
 {
 	float depth = DepthTexture.Load(int3(input.Position.xy, 0));
 	uint eyeIndex = Stereo::GetEyeIndexFromTexCoord(input.TexCoord);

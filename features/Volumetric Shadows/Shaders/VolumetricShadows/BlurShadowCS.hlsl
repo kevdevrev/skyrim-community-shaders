@@ -23,7 +23,10 @@ static const float weights[6] = {
 groupshared float2 g_cache[GROUP_SIZE + 2 * KERNEL_RADIUS];
 
 #if defined(BLUR_HORIZONTAL)
-[numthreads(GROUP_SIZE, 1, 1)] void main(uint3 groupID : SV_GroupID, uint3 groupThreadID : SV_GroupThreadID, uint3 dispatchThreadID : SV_DispatchThreadID) {
+[numthreads(GROUP_SIZE, 1, 1)] void main(uint3 groupID
+										 : SV_GroupID, uint3 groupThreadID
+										 : SV_GroupThreadID, uint3 dispatchThreadID
+										 : SV_DispatchThreadID) {
 	uint width, height;
 	InputTexture.GetDimensions(width, height);
 
@@ -61,7 +64,10 @@ groupshared float2 g_cache[GROUP_SIZE + 2 * KERNEL_RADIUS];
 }
 
 #elif defined(BLUR_VERTICAL)
-[numthreads(1, GROUP_SIZE, 1)] void main(uint3 groupID : SV_GroupID, uint3 groupThreadID : SV_GroupThreadID, uint3 dispatchThreadID : SV_DispatchThreadID) {
+[numthreads(1, GROUP_SIZE, 1)] void main(uint3 groupID
+										 : SV_GroupID, uint3 groupThreadID
+										 : SV_GroupThreadID, uint3 dispatchThreadID
+										 : SV_DispatchThreadID) {
 	uint width, height;
 	InputTexture.GetDimensions(width, height);
 

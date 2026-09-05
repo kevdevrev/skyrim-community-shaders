@@ -42,7 +42,8 @@ float2 ExtractVelocity(float4 colorSample)
 }
 
 // Process one cell in the grid
-[numthreads(8, 8, 1)] void main(uint3 DTid : SV_DispatchThreadID) {
+[numthreads(8, 8, 1)] void main(uint3 DTid
+								: SV_DispatchThreadID) {
 	// Check bounds
 	if (DTid.x >= GRID_SIZE || DTid.y >= GRID_SIZE)
 		return;

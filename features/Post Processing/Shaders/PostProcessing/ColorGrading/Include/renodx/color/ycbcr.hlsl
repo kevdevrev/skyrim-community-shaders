@@ -62,7 +62,7 @@ namespace renodx
 					return YCbCr(ycbcr::from::Limited(ycbcr_limited));
 				}
 			}  // namespace from
-		}  // namespace bt601
+		}      // namespace bt601
 
 		namespace bt709
 		{
@@ -79,7 +79,7 @@ namespace renodx
 					return YCbCr(ycbcr::from::Limited(ycbcr_limited));
 				}
 			}  // namespace from
-		}  // namespace bt709
+		}      // namespace bt709
 
 	}  // namespace color
 }  // namespace renodx

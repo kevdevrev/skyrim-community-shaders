@@ -20,7 +20,8 @@ RWTexture2D<uint> ModeTextureRW : register(u0);
 // Sentinel for the edge-detection search: means "no discontinuity found yet".
 static const uint kEdgeDistNone = 0xFFFFFFFFu;
 
-[numthreads(8, 8, 1)] void main(uint2 dtid : SV_DispatchThreadID) {
+[numthreads(8, 8, 1)] void main(uint2 dtid
+								: SV_DispatchThreadID) {
 	if (any(dtid >= uint2(FrameDim)))
 		return;
 

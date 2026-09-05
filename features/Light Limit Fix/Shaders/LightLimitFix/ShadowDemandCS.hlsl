@@ -174,7 +174,9 @@ void AccumulateEyeSample(int2 texel, float2 texcoord, uint eyeIndex, uint2 tileX
 }
 
 [numthreads(16, 16, 1)] void main(
-	uint3 dispatchThreadId : SV_DispatchThreadID, uint groupIndex : SV_GroupIndex) {
+	uint3 dispatchThreadId
+	: SV_DispatchThreadID, uint groupIndex
+	: SV_GroupIndex) {
 	// The cooperative zero/flush below must run on every thread, including
 	// out-of-bounds tiles -- do not early-return before the barriers, or a
 	// partial-group barrier is undefined behavior on SM5.

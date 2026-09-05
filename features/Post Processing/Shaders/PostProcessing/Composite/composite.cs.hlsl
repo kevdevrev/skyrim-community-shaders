@@ -163,7 +163,8 @@ float3 PurkinjeShift(float3 c, float nightAdaptation)
 
 RWTexture2D<float4> RWTexOutput : register(u0);
 
-[numthreads(8, 8, 1)] void CSComposite(uint2 tid : SV_DispatchThreadID) {
+[numthreads(8, 8, 1)] void CSComposite(uint2 tid
+									   : SV_DispatchThreadID) {
 	uint2 dims;
 	RWTexOutput.GetDimensions(dims.x, dims.y);
 

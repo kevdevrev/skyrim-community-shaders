@@ -130,7 +130,9 @@ float2 Twiddle(uint k, uint N)
 	return float2(c, s);
 }
 
-[numthreads(1024, 1, 1)] void CS_FFT(uint3 groupId : SV_GroupID, uint threadIdx : SV_GroupThreadID) {
+[numthreads(1024, 1, 1)] void CS_FFT(uint3 groupId
+									 : SV_GroupID, uint threadIdx
+									 : SV_GroupThreadID) {
 	uint lineIdx = groupId.x;
 	uint N = FFTResolution;
 	bool active = (threadIdx < N);
@@ -206,7 +208,8 @@ float2 Twiddle(uint k, uint N)
 	// Dispatch: ((N+7)/8, (N+7)/8, 1)
 	// ============================================================
 
-	[numthreads(8, 8, 1)] void CS_Multiply(uint2 tid : SV_DispatchThreadID)
+	[numthreads(8, 8, 1)] void CS_Multiply(uint2 tid
+										   : SV_DispatchThreadID)
 {
 	if (tid.x >= FFTResolution || tid.y >= FFTResolution)
 		return;
@@ -233,7 +236,8 @@ float2 Twiddle(uint k, uint N)
 // Dispatch: ((N+7)/8, (N+7)/8, 1)
 // ============================================================
 
-[numthreads(8, 8, 1)] void CSBokehPrepare(uint2 tid : SV_DispatchThreadID) {
+[numthreads(8, 8, 1)] void CSBokehPrepare(uint2 tid
+										  : SV_DispatchThreadID) {
 	uint N = FFTResolution;
 	if (tid.x >= N || tid.y >= N)
 		return;
@@ -290,7 +294,8 @@ float2 Twiddle(uint k, uint N)
 	// Dispatch: ((N+7)/8, (N+7)/8, 1)
 	// ============================================================
 
-	[numthreads(8, 8, 1)] void CSFFTThreshold(uint2 tid : SV_DispatchThreadID)
+	[numthreads(8, 8, 1)] void CSFFTThreshold(uint2 tid
+											  : SV_DispatchThreadID)
 {
 	uint N = FFTResolution;
 	if (tid.x >= N || tid.y >= N)
@@ -347,7 +352,8 @@ float DiscMask(float2 screenPos)
 	return saturate(1.0f - dot(screenPos, screenPos));
 }
 
-[numthreads(8, 8, 1)] void CSFFTGhostCompose(uint2 tid : SV_DispatchThreadID) {
+[numthreads(8, 8, 1)] void CSFFTGhostCompose(uint2 tid
+											 : SV_DispatchThreadID) {
 	uint outW = (uint)OutputWidth;
 	uint outH = (uint)OutputHeight;
 	if (tid.x >= outW || tid.y >= outH)

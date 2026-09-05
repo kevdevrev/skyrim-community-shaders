@@ -75,7 +75,7 @@ namespace renodx
 					return ictcp_color;
 				}
 			}  // namespace from
-		}  // namespace ictcp
+		}      // namespace ictcp
 
 		namespace bt709
 		{
@@ -95,8 +95,8 @@ namespace renodx
 				}
 
 			}  // namespace from
-		}  // namespace bt709
-	}  // namespace color
+		}      // namespace bt709
+	}          // namespace color
 }  // namespace renodx
 
 #endif  // SRC_SHADERS_COLOR_ICTCP_HLSL_

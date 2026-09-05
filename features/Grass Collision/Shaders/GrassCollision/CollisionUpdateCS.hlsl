@@ -32,7 +32,11 @@ RWTexture2D<float4> Collision : register(u0);
 groupshared BoundingBoxPacked SharedBoundingBoxes[64];
 
 [numthreads(8, 8, 1)] void main(
-	uint3 groupId : SV_GroupID, uint3 dispatchThreadId : SV_DispatchThreadID, uint3 groupThreadId : SV_GroupThreadID, uint groupIndex : SV_GroupIndex) {
+	uint3 groupId
+	: SV_GroupID, uint3 dispatchThreadId
+	: SV_DispatchThreadID, uint3 groupThreadId
+	: SV_GroupThreadID, uint groupIndex
+	: SV_GroupIndex) {
 	if (groupIndex < BoundingBoxCount)
 		SharedBoundingBoxes[groupIndex] = CollisionBoundingBoxes[groupIndex];
 

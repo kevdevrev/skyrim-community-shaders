@@ -13,7 +13,8 @@ typedef VS_OUTPUT PS_INPUT;
 SamplerState LinearSampler : register(s0);
 Texture2D<float4> SourceTex : register(t0);
 
-float4 main(PS_INPUT input) : SV_Target
+float4 main(PS_INPUT input) :
+	SV_Target
 {
 	float2 srcSize;
 	SourceTex.GetDimensions(srcSize.x, srcSize.y);

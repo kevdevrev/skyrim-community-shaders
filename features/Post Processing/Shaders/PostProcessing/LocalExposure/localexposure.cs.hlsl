@@ -56,14 +56,16 @@ float SceneLogLuminance(float3 color)
 	return clamp(log2(max(luminance, exp2(LogLuminanceMin))), LogLuminanceMin, LogLuminanceMax);
 }
 
-[numthreads(8, 8, 1)] void CSSetupLogLuminance(uint2 tid : SV_DispatchThreadID) {
+[numthreads(8, 8, 1)] void CSSetupLogLuminance(uint2 tid
+											   : SV_DispatchThreadID) {
 	if (tid.x >= InputWidth || tid.y >= InputHeight)
 		return;
 
 	RWTexOutput[tid] = SceneLogLuminance(TexColor[tid].rgb);
 }
 
-	[numthreads(8, 8, 1)] void CSDownsampleLogLuminance(uint2 tid : SV_DispatchThreadID)
+	[numthreads(8, 8, 1)] void CSDownsampleLogLuminance(uint2 tid
+														: SV_DispatchThreadID)
 {
 	uint2 outputSize;
 	RWTexOutput.GetDimensions(outputSize.x, outputSize.y);
@@ -107,14 +109,16 @@ float BlurLogLuminance(uint2 tid, float2 direction)
 	return result / max(weightSum, 1e-5);
 }
 
-[numthreads(8, 8, 1)] void CSBlurHorizontal(uint2 tid : SV_DispatchThreadID) {
+[numthreads(8, 8, 1)] void CSBlurHorizontal(uint2 tid
+											: SV_DispatchThreadID) {
 	if (tid.x >= BlurredWidth || tid.y >= BlurredHeight)
 		return;
 
 	RWTexOutput[tid] = BlurLogLuminance(tid, float2(1.0, 0.0));
 }
 
-	[numthreads(8, 8, 1)] void CSBlurVertical(uint2 tid : SV_DispatchThreadID)
+	[numthreads(8, 8, 1)] void CSBlurVertical(uint2 tid
+											  : SV_DispatchThreadID)
 {
 	if (tid.x >= BlurredWidth || tid.y >= BlurredHeight)
 		return;
@@ -126,9 +130,12 @@ groupshared uint ThreadGridWeights[GRID_DEPTH][GRID_THREAD_SIZE * GRID_THREAD_SI
 groupshared uint ThreadGridLogSums[GRID_DEPTH][GRID_THREAD_SIZE * GRID_THREAD_SIZE];
 
 [numthreads(GRID_THREAD_SIZE, GRID_THREAD_SIZE, 1)] void CSBuildLuminanceGrid(
-	uint3 groupID : SV_GroupID,
-	uint3 groupThreadID : SV_GroupThreadID,
-	uint groupIndex : SV_GroupIndex) {
+	uint3 groupID
+	: SV_GroupID,
+	uint3 groupThreadID
+	: SV_GroupThreadID,
+	uint groupIndex
+	: SV_GroupIndex) {
 	[unroll] for (uint bin = 0; bin < GRID_DEPTH; bin++)
 	{
 		ThreadGridWeights[bin][groupIndex] = 0;
@@ -186,7 +193,8 @@ groupshared uint ThreadGridLogSums[GRID_DEPTH][GRID_THREAD_SIZE * GRID_THREAD_SI
 	}
 }
 
-	[numthreads(8, 8, 1)] void CSResolveBaseLuminance(uint2 tid : SV_DispatchThreadID)
+	[numthreads(8, 8, 1)] void CSResolveBaseLuminance(uint2 tid
+													  : SV_DispatchThreadID)
 {
 	if (tid.x >= InputWidth || tid.y >= InputHeight)
 		return;

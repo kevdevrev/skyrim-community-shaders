@@ -27,7 +27,9 @@ cbuffer VLData : register(b1)
 groupshared float vl[TG_DIM];
 groupshared float depth[TG_DIM];
 
-[numthreads(1, TG_DIM, 1)] void main(uint3 groupThreadId : SV_GroupThreadID, uint3 groupId : SV_GroupID) {
+[numthreads(1, TG_DIM, 1)] void main(uint3 groupThreadId
+									 : SV_GroupThreadID, uint3 groupId
+									 : SV_GroupID) {
 	int idx = groupThreadId.y;
 	int base = idx - WINDOW;
 	int x = groupId.x;

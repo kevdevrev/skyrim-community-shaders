@@ -91,7 +91,7 @@ void DumpShader(const RE::BSShader* thisClass, const ShaderType* shader, std::sp
 		}
 	}
 
-	if (FILE* file; fopen_s(&file, dumpPath.c_str(), "wb") == 0) {
+	if (FILE * file; fopen_s(&file, dumpPath.c_str(), "wb") == 0) {
 		fwrite(bytecode.data(), 1, bytecode.size(), file);
 		fclose(file);
 	}

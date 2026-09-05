@@ -419,13 +419,15 @@ float4 PerformFullFragmentGaussianBlur(Texture2D source, float2 texcoord, uint2 
 	return fragment;
 }
 
-[numthreads(1, 1, 1)] void CS_UpdateFocus(uint2 DTid : SV_DispatchThreadID) {
+[numthreads(1, 1, 1)] void CS_UpdateFocus(uint2 DTid
+										  : SV_DispatchThreadID) {
 	float depth = AutoFocus ? GetDepth(FocusCoord) : ManualFocusPlane;
 	float previousFocus = TexPreviousFocus[uint2(0, 0)];
 	RWFocus[DTid] = lerp(previousFocus, depth, TransitionSpeed);
 }
 
-	[numthreads(8, 8, 1)] void CS_CalculateCoC(uint2 DTid : SV_DispatchThreadID)
+	[numthreads(8, 8, 1)] void CS_CalculateCoC(uint2 DTid
+											   : SV_DispatchThreadID)
 {
 	if (DTid.x >= (uint)SharedData::BufferDim.x || DTid.y >= (uint)SharedData::BufferDim.y)
 		return;
@@ -442,7 +444,8 @@ float4 PerformFullFragmentGaussianBlur(Texture2D source, float2 texcoord, uint2 
 
 // Flattens the full res CoC into one (min, max) per 16x16 pixel tile. Uses GatherRed so each
 // iteration pulls 4 texels; the whole pass reads the full res CoC exactly once.
-[numthreads(8, 8, 1)] void CS_CoCTileFlatten(uint2 DTid : SV_DispatchThreadID) {
+[numthreads(8, 8, 1)] void CS_CoCTileFlatten(uint2 DTid
+											 : SV_DispatchThreadID) {
 	if (any(DTid >= CoCTileDim))
 		return;
 
@@ -468,7 +471,8 @@ float4 PerformFullFragmentGaussianBlur(Texture2D source, float2 texcoord, uint2 
 
 	// Separable min/max dilation plus a conservative Manhattan distance transform. A tile step is
 	// scaled by 1/sqrt(2), so diagonal propagation never under-covers a circular aperture.
-	[numthreads(8, 8, 1)] void CS_CoCTileDilateH(uint2 DTid : SV_DispatchThreadID)
+	[numthreads(8, 8, 1)] void CS_CoCTileDilateH(uint2 DTid
+												 : SV_DispatchThreadID)
 {
 	if (any(DTid >= CoCTileDim))
 		return;
@@ -488,7 +492,8 @@ float4 PerformFullFragmentGaussianBlur(Texture2D source, float2 texcoord, uint2 
 	RWTexCoCTile[DTid] = float4(minMax, max(nearReachPx, 0.0f), 0.0f);
 }
 
-[numthreads(8, 8, 1)] void CS_CoCTileDilateV(uint2 DTid : SV_DispatchThreadID) {
+[numthreads(8, 8, 1)] void CS_CoCTileDilateV(uint2 DTid
+											 : SV_DispatchThreadID) {
 	if (any(DTid >= CoCTileDim))
 		return;
 
@@ -547,7 +552,8 @@ float3 ReduceColorWithCoC(float3 tapColor[4], float tapCoC[4], float outCoC, flo
 }
 
 // Half res setup of scene colour and signed CoC.
-[numthreads(8, 8, 1)] void CS_Downsample(uint2 DTid : SV_DispatchThreadID) {
+[numthreads(8, 8, 1)] void CS_Downsample(uint2 DTid
+										 : SV_DispatchThreadID) {
 	if (any(DTid >= HalfResDim))
 		return;
 
@@ -569,7 +575,8 @@ float3 ReduceColorWithCoC(float3 tapColor[4], float tapCoC[4], float outCoC, flo
 }
 
 	// Exact compatibility setup retained for A/B validation and user rollback.
-	[numthreads(8, 8, 1)] void CS_DownsampleLegacy(uint2 DTid : SV_DispatchThreadID)
+	[numthreads(8, 8, 1)] void CS_DownsampleLegacy(uint2 DTid
+												   : SV_DispatchThreadID)
 {
 	if (any(DTid >= HalfResDim))
 		return;
@@ -601,7 +608,8 @@ float3 ReduceColorWithCoC(float3 tapColor[4], float tapCoC[4], float outCoC, flo
 
 // Generic 2x2 pyramid reduction. The source sizes are queried from the bound resources so the
 // same shader handles half -> quarter -> eighth -> sixteenth, including odd dimensions.
-[numthreads(8, 8, 1)] void CS_ReduceColorCoC(uint2 DTid : SV_DispatchThreadID) {
+[numthreads(8, 8, 1)] void CS_ReduceColorCoC(uint2 DTid
+											 : SV_DispatchThreadID) {
 	uint sourceWidth;
 	uint sourceHeight;
 	TexColor.GetDimensions(sourceWidth, sourceHeight);
@@ -632,7 +640,8 @@ float3 ReduceColorWithCoC(float3 tapColor[4], float tapCoC[4], float outCoC, flo
 
 	// Color-only reduction for the near gather: the resolved far layer is its source, while footprint
 	// selection reuses the signed setup CoC pyramid.
-	[numthreads(8, 8, 1)] void CS_ReduceColor(uint2 DTid : SV_DispatchThreadID)
+	[numthreads(8, 8, 1)] void CS_ReduceColor(uint2 DTid
+											  : SV_DispatchThreadID)
 {
 	uint sourceWidth;
 	uint sourceHeight;
@@ -845,7 +854,8 @@ void AccumulateNearGatherSample(
 	weightSum += weight;
 }
 
-[numthreads(8, 8, 1)] void CS_FarGather(uint2 DTid : SV_DispatchThreadID) {
+[numthreads(8, 8, 1)] void CS_FarGather(uint2 DTid
+										: SV_DispatchThreadID) {
 	if (any(DTid >= HalfResDim))
 		return;
 
@@ -888,7 +898,8 @@ void AccumulateNearGatherSample(
 	RWTexOut[DTid] = color;
 }
 
-	[numthreads(8, 8, 1)] void CS_NearGather(uint2 DTid : SV_DispatchThreadID)
+	[numthreads(8, 8, 1)] void CS_NearGather(uint2 DTid
+											 : SV_DispatchThreadID)
 {
 	if (any(DTid >= HalfResDim))
 		return;
@@ -940,7 +951,8 @@ void AccumulateNearGatherSample(
 }
 #endif
 
-[numthreads(8, 8, 1)] void CS_FarBlur(uint2 DTid : SV_DispatchThreadID) {
+[numthreads(8, 8, 1)] void CS_FarBlur(uint2 DTid
+									  : SV_DispatchThreadID) {
 	float4 color = TexColor[DTid];
 
 	// Tile early out: nothing around this pixel has a far field blur disc worth gathering.
@@ -1013,7 +1025,8 @@ void AccumulateNearGatherSample(
 	RWTexOut[DTid] = color;
 }
 
-	[numthreads(8, 8, 1)] void CS_NearBlur(uint2 DTid : SV_DispatchThreadID)
+	[numthreads(8, 8, 1)] void CS_NearBlur(uint2 DTid
+										   : SV_DispatchThreadID)
 {
 	float4 color = TexColor[DTid];
 
@@ -1125,7 +1138,8 @@ float4 GatherMedianAt(Texture2D<float4> inputTexture, uint2 pixel)
 	return Median9(samples);
 }
 
-[numthreads(8, 8, 1)] void CS_GatherPostfilter(uint2 DTid : SV_DispatchThreadID) {
+[numthreads(8, 8, 1)] void CS_GatherPostfilter(uint2 DTid
+											   : SV_DispatchThreadID) {
 	if (any(DTid >= HalfResDim))
 		return;
 
@@ -1135,7 +1149,8 @@ float4 GatherMedianAt(Texture2D<float4> inputTexture, uint2 pixel)
 	RWTexCoCTile[DTid] = GatherMedianAt(TexNearBlur, DTid);
 }
 
-	[numthreads(8, 8, 1)] void CS_Combiner(uint2 DTid : SV_DispatchThreadID)
+	[numthreads(8, 8, 1)] void CS_Combiner(uint2 DTid
+										   : SV_DispatchThreadID)
 {
 	float2 uv = (DTid.xy + 0.5f) * SharedData::BufferDim.zw;
 	// first blend far plane with original buffer, then near plane on top of that.
@@ -1156,13 +1171,15 @@ float4 GatherMedianAt(Texture2D<float4> inputTexture, uint2 pixel)
 	RWTexOut[DTid] = color;
 }
 
-[numthreads(8, 8, 1)] void CS_PostSmoothing1(uint2 DTid : SV_DispatchThreadID) {
+[numthreads(8, 8, 1)] void CS_PostSmoothing1(uint2 DTid
+											 : SV_DispatchThreadID) {
 	float2 uv = (DTid.xy + 0.5f) * SharedData::BufferDim.zw;
 
 	RWTexOut[DTid] = PerformFullFragmentGaussianBlur(TexColor, uv, DTid, float2((SharedData::BufferDim.z), 0.0));
 }
 
-	[numthreads(8, 8, 1)] void CS_PostSmoothing2AndFocusing(uint2 DTid : SV_DispatchThreadID)
+	[numthreads(8, 8, 1)] void CS_PostSmoothing2AndFocusing(uint2 DTid
+															: SV_DispatchThreadID)
 {
 	float2 uv = (DTid.xy + 0.5f) * SharedData::BufferDim.zw;
 

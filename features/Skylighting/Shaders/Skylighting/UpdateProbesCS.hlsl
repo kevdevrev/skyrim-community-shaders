@@ -67,7 +67,8 @@ static const float3 noise3D[32] = {
 };
 #endif
 
-[numthreads(8, 8, 1)] void main(uint3 dtid : SV_DispatchThreadID) {
+[numthreads(8, 8, 1)] void main(uint3 dtid
+								: SV_DispatchThreadID) {
 	const float fadeInThreshold = 15;
 	const static sh2 unitSH = Skylighting::UNIT_SH;
 	const SharedData::SkylightingSettings settings = SharedData::skylightingSettings;

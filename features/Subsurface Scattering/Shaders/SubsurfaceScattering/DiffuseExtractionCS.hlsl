@@ -7,7 +7,8 @@ Texture2D<float4> AlbedoTexture : register(t3);
 #include "Common/SharedData.hlsli"
 #include "SubsurfaceScattering/SSSCommon.hlsli"
 
-[numthreads(8, 8, 1)] void main(uint3 DTid : SV_DispatchThreadID) {
+[numthreads(8, 8, 1)] void main(uint3 DTid
+								: SV_DispatchThreadID) {
 	if (any(DTid.xy >= uint2(SharedData::BufferDim.xy)))
 		return;
 

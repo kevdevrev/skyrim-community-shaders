@@ -51,7 +51,8 @@ float HashToFloat(uint seed)
 	return float(seed) / 4294967295.0;
 }
 
-[numthreads(8, 8, 1)] void CS_TearFilm(uint2 tid : SV_DispatchThreadID) {
+[numthreads(8, 8, 1)] void CS_TearFilm(uint2 tid
+									   : SV_DispatchThreadID) {
 	if (tid.x >= FFTResolution || tid.y >= FFTResolution)
 		return;
 

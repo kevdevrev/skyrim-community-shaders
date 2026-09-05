@@ -29,7 +29,7 @@ namespace renodx
 					return ipt_color;
 				}
 			}  // namespace from
-		}  // namespace ipt
+		}      // namespace ipt
 
 		namespace bt709
 		{
@@ -48,7 +48,7 @@ namespace renodx
 				}
 
 			}  // namespace from
-		}  // namespace bt709
-	}  // namespace color
+		}      // namespace bt709
+	}          // namespace color
 }  // namespace renodx
 #endif  // SRC_SHADERS_COLOR_IPT_HLSL_

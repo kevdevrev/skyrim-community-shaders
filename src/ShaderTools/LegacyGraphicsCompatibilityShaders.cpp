@@ -14,7 +14,8 @@ namespace LegacyGraphicsCompatibility
 		class ScopedDepthOfFieldSelectorContext
 		{
 		public:
-			explicit ScopedDepthOfFieldSelectorContext(bool a_value) : previous(depthOfFieldSelectorContext)
+			explicit ScopedDepthOfFieldSelectorContext(bool a_value) :
+				previous(depthOfFieldSelectorContext)
 			{
 				depthOfFieldSelectorContext = a_value;
 			}

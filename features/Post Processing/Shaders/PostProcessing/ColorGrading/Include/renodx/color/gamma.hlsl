@@ -56,7 +56,7 @@ namespace renodx
 #undef DECODE_SAFE
 
 		}  // namespace gamma
-	}  // namespace color
+	}      // namespace color
 }  // namespace renodx
 
 #endif  // RENODX_SHADERS_COLOR_GAMMA_HLSL

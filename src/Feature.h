@@ -288,7 +288,7 @@ public:
 	virtual void DrawUnloadedUI();
 
 	/** @brief Per-frame work executed before the reflections pass. */
-	virtual void ReflectionsPrepass() {};
+	virtual void ReflectionsPrepass(){};
 
 	/** @brief Per-frame work executed before the main rendering pass. */
 	virtual void Prepass() {}

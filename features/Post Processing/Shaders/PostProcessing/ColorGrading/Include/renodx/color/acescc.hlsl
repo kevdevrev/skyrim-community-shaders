@@ -60,7 +60,7 @@ namespace renodx
 			}
 
 		}  // namespace acescc
-	}  // namespace color
+	}      // namespace color
 }  // namespace renodx
 
 #endif  // SRC_SHADERS_COLOR_ACESCC_HLSL_

@@ -879,7 +879,7 @@ void WeatherWidget::DrawDALCSettings()
 				});
 			});
 		};
-		auto drawDalcFloat = [&](const char* settingId, const char* label, float (&values)[4], bool* inheritFlag = nullptr, float* parentValues = nullptr) {
+		auto drawDalcFloat = [&](const char* settingId, const char* label, float(&values)[4], bool* inheritFlag = nullptr, float* parentValues = nullptr) {
 			return DrawIfMatchesSearch(settingId, [&](const char*) {
 				return DrawWithHighlight(settingId, [&]() {
 					return inheritFlag ?

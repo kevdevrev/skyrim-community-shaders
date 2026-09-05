@@ -114,7 +114,7 @@ namespace renodx
 			}
 
 		}  // namespace srgba
-	}  // namespace color
+	}      // namespace color
 }  // namespace renodx
 
 #endif  // RENODX_SHADERS_COLOR_SRGB_HLSL

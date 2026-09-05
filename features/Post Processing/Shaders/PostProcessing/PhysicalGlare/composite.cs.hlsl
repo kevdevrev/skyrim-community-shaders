@@ -124,7 +124,8 @@ float3 CatmullRomSampleRGB(Texture2D<float4> tex, SamplerState samp, float2 uv, 
 	return result;
 }
 
-[numthreads(8, 8, 1)] void CS_Composite(uint2 tid : SV_DispatchThreadID) {
+[numthreads(8, 8, 1)] void CS_Composite(uint2 tid
+										: SV_DispatchThreadID) {
 	if (tid.x >= (uint)ScreenWidth || tid.y >= (uint)ScreenHeight)
 		return;
 

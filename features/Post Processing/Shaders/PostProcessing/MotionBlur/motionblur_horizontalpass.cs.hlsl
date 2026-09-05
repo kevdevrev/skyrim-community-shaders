@@ -32,7 +32,8 @@ uint2 GetVelocitySamplePosition(uint2 targetPixel, uint2 velocityDimensions)
 }
 
 // Process horizontal strips
-[numthreads(8, 8, 1)] void main(uint3 DTid : SV_DispatchThreadID) {
+[numthreads(8, 8, 1)] void main(uint3 DTid
+								: SV_DispatchThreadID) {
 	// Get dimensions and check bounds
 	uint2 velocityDimensions;
 	TexVelocity.GetDimensions(velocityDimensions.x, velocityDimensions.y);

@@ -307,7 +307,8 @@ namespace Util
 			name = name.substr(first, last - first + 1);
 
 			// Replace invalid characters
-			std::replace_if(name.begin(), name.end(), [](char c) {
+			std::replace_if(
+				name.begin(), name.end(), [](char c) {
 				auto u = static_cast<unsigned char>(c);
 				// Only perform "illegal" checks if it's a standard ASCII character (0-127)
 				if (u < 128u) {

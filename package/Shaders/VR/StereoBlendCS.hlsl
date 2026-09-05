@@ -44,7 +44,8 @@ float4 SampleCrossDepths(int2 center, int offset, uint eyeIndex)
 		DepthTexture[Stereo::ClampToEyeBounds(center + int2(0, -offset), eyeIndex, FrameDim)]);
 }
 
-[numthreads(8, 8, 1)] void main(uint2 dtid : SV_DispatchThreadID) {
+[numthreads(8, 8, 1)] void main(uint2 dtid
+								: SV_DispatchThreadID) {
 	if (any(dtid >= uint2(FrameDim)))
 		return;
 

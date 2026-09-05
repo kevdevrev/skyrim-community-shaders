@@ -61,7 +61,7 @@ public:
 	RE::TESForm* form = nullptr;
 
 	/** @brief Virtual destructor. */
-	virtual ~Widget() {};
+	virtual ~Widget(){};
 
 	static constexpr std::string_view kWeatherFolderName = "Weathers";
 	static constexpr std::string_view kLightingTemplateFolderName = "Lighting Templates";

@@ -466,7 +466,7 @@ namespace renodx
 						renodx::tonemap::inverse::Neutwo(color.b, peak.b, clip.b));
 				}
 			}  // namespace neutwo
-		}  // namespace inverse
+		}      // namespace inverse
 
 	}  // namespace tonemap
 

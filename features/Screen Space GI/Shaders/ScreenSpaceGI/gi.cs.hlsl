@@ -385,7 +385,8 @@ void CalculateGI(
 	o_currGIAOSpecular = float4(radianceSpecular, visibilitySpecular);
 }
 
-[numthreads(8, 8, 1)] void main(const uint2 dtid : SV_DispatchThreadID) {
+[numthreads(8, 8, 1)] void main(const uint2 dtid
+								: SV_DispatchThreadID) {
 	if (any(dtid >= uint2(OUT_FRAME_DIM)))
 		return;
 

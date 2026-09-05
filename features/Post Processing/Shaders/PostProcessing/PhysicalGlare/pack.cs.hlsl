@@ -6,7 +6,8 @@ Texture2D<float2> TexIFFT_B : register(t2);
 
 RWTexture2D<float4> RWTexPacked : register(u0);
 
-[numthreads(8, 8, 1)] void CS_Pack(uint2 tid : SV_DispatchThreadID) {
+[numthreads(8, 8, 1)] void CS_Pack(uint2 tid
+								   : SV_DispatchThreadID) {
 	uint width, height;
 	RWTexPacked.GetDimensions(width, height);
 	if (tid.x >= width || tid.y >= height)

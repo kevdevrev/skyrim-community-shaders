@@ -316,7 +316,8 @@ void EncodeP1(inout uint4 block, inout float blockMSLE, float3 texels[16])
 }
 
 [numthreads(8, 8, 1)] void main(
-	uint3 dispatchThreadID : SV_DispatchThreadID) {
+	uint3 dispatchThreadID
+	: SV_DispatchThreadID) {
 	uint2 blockCoord = dispatchThreadID.xy;
 	uint faceIndex = dispatchThreadID.z;
 

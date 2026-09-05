@@ -18,8 +18,8 @@ Texture2D<uint> ModeTexture : register(t0);
 
 struct PS_INPUT
 {
-	float4 Position: SV_Position;
-	float2 TexCoord: TEXCOORD0;
+	float4 Position : SV_Position;
+	float2 TexCoord : TEXCOORD0;
 };
 
 void main(PS_INPUT input)

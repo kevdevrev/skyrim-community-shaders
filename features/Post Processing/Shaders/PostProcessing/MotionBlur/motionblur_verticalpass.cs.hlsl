@@ -41,7 +41,10 @@ float2 ExtractVelocity(float4 colorSample)
 }
 
 // Vertical reduction pass
-[numthreads(8, 8, 1)] void main(uint3 DTid : SV_DispatchThreadID, uint3 GTid : SV_GroupThreadID, uint3 Gid : SV_GroupID) {
+[numthreads(8, 8, 1)] void main(uint3 DTid
+								: SV_DispatchThreadID, uint3 GTid
+								: SV_GroupThreadID, uint3 Gid
+								: SV_GroupID) {
 	// Get dimensions and check bounds
 	uint2 horizontalDimensions;
 	TexHorizontal.GetDimensions(horizontalDimensions.x, horizontalDimensions.y);

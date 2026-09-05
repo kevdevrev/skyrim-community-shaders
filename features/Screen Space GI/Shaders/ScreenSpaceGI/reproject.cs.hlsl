@@ -39,7 +39,8 @@ void Passthrough(uint2 dtid)
 #	endif
 }
 
-[numthreads(8, 8, 1)] void main(uint2 dtid : SV_DispatchThreadID) {
+[numthreads(8, 8, 1)] void main(uint2 dtid
+								: SV_DispatchThreadID) {
 	const float2 outFrameDim = OUT_FRAME_DIM;
 	if (any(dtid >= uint2(outFrameDim)))
 		return;

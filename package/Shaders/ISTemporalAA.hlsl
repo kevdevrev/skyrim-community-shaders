@@ -8,8 +8,8 @@ typedef VS_OUTPUT PS_INPUT;
 
 struct PS_OUTPUT
 {
-	float4 Color: SV_Target0;
-	float4 Feedback: SV_Target1;
+	float4 Color : SV_Target0;
+	float4 Feedback : SV_Target1;
 };
 
 #if defined(PSHADER)

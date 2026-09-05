@@ -54,6 +54,6 @@ namespace renodx
 			}
 
 		}  // namespace pq
-	}  // namespace color
+	}      // namespace color
 }  // namespace renodx
 #endif  // SRC_SHADERS_COLOR_PQ_HLSL_

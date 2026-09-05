@@ -122,7 +122,7 @@ namespace renodx
 			}
 
 		}  // namespace convert
-	}  // namespace color
+	}      // namespace color
 }  // namespace renodx
 
 #endif  // RENODX_SHADERS_COLOR_CONVERT_HLSL_

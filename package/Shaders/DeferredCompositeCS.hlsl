@@ -98,7 +98,8 @@ void SampleSSGISpecular(uint2 pixCoord, sh2 lobe, inout float ao, out float3 il,
 #	endif
 #endif
 
-[numthreads(8, 8, 1)] void main(uint3 dispatchID : SV_DispatchThreadID) {
+[numthreads(8, 8, 1)] void main(uint3 dispatchID
+								: SV_DispatchThreadID) {
 	// Early exit if dispatch thread is outside screen bounds
 	if (any(dispatchID.xy >= uint2(SharedData::BufferDim.xy)))
 		return;

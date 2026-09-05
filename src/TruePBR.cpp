@@ -477,7 +477,8 @@ void TruePBR::SetupTextureSetData()
 
 	pbrTextureSets.clear();
 
-	PNState::ReadPBRRecordConfigs("Data\\PBRTextureSets", [this](const std::string& editorId, const json& config) {
+	PNState::ReadPBRRecordConfigs(
+		"Data\\PBRTextureSets", [this](const std::string& editorId, const json& config) {
 		try {
 			pbrTextureSets.insert_or_assign(editorId, config);
 			return true;
@@ -493,7 +494,8 @@ void TruePBR::ReloadTextureSetData()
 		logger::info("[TruePBR] reloading PBR texture set configs");
 	}
 
-	PNState::ReadPBRRecordConfigs("Data\\PBRTextureSets", [this](const std::string& editorId, const json& config) {
+	PNState::ReadPBRRecordConfigs(
+		"Data\\PBRTextureSets", [this](const std::string& editorId, const json& config) {
 		try {
 			if (auto it = pbrTextureSets.find(editorId); it != pbrTextureSets.cend()) {
 				it->second = config;
@@ -537,7 +539,8 @@ void TruePBR::SetupMaterialObjectData()
 
 	pbrMaterialObjects.clear();
 
-	PNState::ReadPBRRecordConfigs("Data\\PBRMaterialObjects", [this](const std::string& editorId, const json& config) {
+	PNState::ReadPBRRecordConfigs(
+		"Data\\PBRMaterialObjects", [this](const std::string& editorId, const json& config) {
 		try {
 			pbrMaterialObjects.insert_or_assign(editorId, config);
 			return true;

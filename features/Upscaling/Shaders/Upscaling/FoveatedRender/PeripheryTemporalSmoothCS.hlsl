@@ -20,7 +20,8 @@ Texture2D<float4> MvecTex : register(t2);      // Motion vectors (per-eye UV del
 SamplerState BilinearSampler : register(s0);   // For history reprojection
 RWTexture2D<float4> OutputTex : register(u0);  // New history (ping-pong write)
 
-[numthreads(8, 8, 1)] void main(uint3 tid : SV_DispatchThreadID) {
+[numthreads(8, 8, 1)] void main(uint3 tid
+								: SV_DispatchThreadID) {
 	if (tid.x >= TexWidth || tid.y >= TexHeight)
 		return;
 

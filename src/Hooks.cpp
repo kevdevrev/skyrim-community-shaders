@@ -595,19 +595,13 @@ struct BSShaderRenderTargets_Create
 		// can diff "active at boot" vs "selected".
 		globals::features::upscaling.bootSnapshot.LatchIfNeeded(globals::features::upscaling.settings);
 
-		// PerfMode: install the BSOpenVR render-target-size hook before the engine creates its render
-		// targets — the one place BSOpenVR is available and we can still influence RT allocation.
-		if (globals::features::upscaling.ShouldEngagePerfMode())
-			globals::features::upscaling.perfMode.InstallRenderTargetSizeHook();
-
-		// Open PerfMode's enlarge window across the engine's Create() so
-		// its 3 per-site thunks override props for the displayRes RTs.
 		auto& perfMode = globals::features::upscaling.perfMode;
-		perfMode.BeginCreateRTEnlarge();
+		perfMode.ReleaseResources();
 		func();
-		perfMode.EndCreateRTEnlarge();
 
 		globals::ReInit();
+		perfMode.SetupResources();
+		perfMode.BeginScene();
 
 		// Must precede Setup()'s SetupResources dispatch -- Upscaling::SetupResources()
 		// allocates FSR's foveation-dependent texture only on its first (and typically
@@ -616,10 +610,7 @@ struct BSShaderRenderTargets_Create
 
 		globals::state->Setup();
 
-		// PerfMode is not in the Feature list (it's a worker driven by the
-		// upscaling toggle), so SetupResources runs here directly.
-		if (perfMode.IsHookActive())
-			perfMode.SetupResources();
+		perfMode.SetSceneTargets(false);
 	}
 	static inline REL::Relocation<decltype(thunk)> func;
 };
@@ -1256,8 +1247,6 @@ namespace Hooks
 		stl::write_thunk_call<CreateDepthStencil_PrecipitationMask>(REL::RelocationID(100458, 107175).address() + REL::Relocate(0x1245, 0x123B, 0x1917));
 		stl::write_thunk_call<CreateCubemapRenderTarget_Reflections>(REL::RelocationID(100458, 107175).address() + REL::Relocate(0xA25, 0xA25, 0xCD2));
 		stl::write_thunk_call<CreateDepthStencil_Reflections>(REL::RelocationID(100458, 107175).address() + REL::Relocate(0xA59, 0xA59, 0xD13));
-
-		globals::features::upscaling.perfMode.InstallCreateRTThunks();
 
 #ifdef TRACY_ENABLE
 		stl::write_thunk_call<Main_Update>(REL::RelocationID(35551, 36544).address() + REL::Relocate(0x11F, 0x160));

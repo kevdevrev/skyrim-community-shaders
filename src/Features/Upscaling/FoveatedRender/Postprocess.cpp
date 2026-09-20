@@ -28,6 +28,15 @@ namespace FoveatedRenderImpl
 		}
 		auto& main = renderer->GetRuntimeData().renderTargets[RE::RENDER_TARGETS::kMAIN];
 
+		if (upscaling.perfMode.IsHookActive()) {
+			auto& scene = upscaling.perfMode;
+			const float sharpness = exp2(2.0f * upscaling.settings.sharpnessDLSS - 2.0f);
+			context->OMSetRenderTargets(0, nullptr, nullptr);
+			upscaling.rcas.ApplySharpen(scene.GetTestTextureSRV(), scene.GetRefraTempUAV(), sharpness);
+			context->CopyResource(scene.GetTestTexture(), scene.GetRefraTempTex());
+			return true;
+		}
+
 		if (!main.SRV) {
 			logger::error("[FOVEATED] Missing main SRV for sharpening");
 			return false;

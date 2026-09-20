@@ -621,6 +621,7 @@ void HDRDisplay::PostPostLoad()
 
 void HDRDisplay::SetupResources()
 {
+	PerfMode::DisplayScope displayResources(globals::features::upscaling.perfMode);
 	if (hdrTexture || outputTexture || uiTexture || hdrDataCB) {
 		DestroyResources();
 	}

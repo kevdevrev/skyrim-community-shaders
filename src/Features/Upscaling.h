@@ -102,9 +102,6 @@ public:
 		bool reflexUseFPSLimit = false;
 		float reflexFPSLimit = 60.0f;
 
-		// VR PerfMode auto-lock (default on): allocate engine render targets at upscaled-render
-		// resolution to bank VRAM/bandwidth. Boot-locked (changing it re-allocates RTs at world load).
-		// Engages only when ShouldEngagePerfMode() holds; a no-op otherwise (see GetUpscaleMethod area).
 		bool renderAtUpscaleRes = true;
 
 		// Explicit per-eye fraction of native HMD size (0 = Auto: preset-derived).
@@ -206,7 +203,7 @@ public:
 		// same thread before the next call.
 		static thread_local std::vector<Util::Settings::RestartFieldInfo> scratch;
 		scratch.clear();
-		if (perfMode.IsHookActive()) {
+		if (perfMode.IsEnabled()) {
 			if (!perfMode.IsExplicitScaleLatched())
 				return { kRestartFields.data(), kRestartFields.size() };
 			// An explicit scale owns the render res, so the preset is inert until
@@ -279,12 +276,6 @@ public:
 	/** @brief Frame-generation runtime state for devbench (method, multiplier, DLSS-G status). */
 	virtual json GetDiagnostics() override;
 
-	// PerfMode can bank render resolution only in VR, with an upscale method that redirects its
-	// output to a separate display-res target (DLSS/FSR — TAA/None can't), and a preset below 1.0x
-	// (Native AA banks nothing). Prerequisites = everything except the renderAtUpscaleRes opt-in;
-	// ShouldEngagePerfMode = prerequisites AND the opt-in. Read from persisted settings, so both are
-	// valid at hook-install time (before perfMode.IsHookActive() flips). Single gate for Hooks.cpp,
-	// Globals.cpp, and restart-field reporting — keep callers from re-deriving and drifting.
 	bool PerfModePrerequisitesMet() const;
 	bool ShouldEngagePerfMode() const;
 
@@ -386,7 +377,7 @@ public:
 	static inline FidelityFX fidelityFX;      ///< AMD FSR frame generation
 	static inline DX12SwapChain dx12SwapChain;
 	static inline RCAS rcas;                      ///< Standalone RCAS sharpening for DLSS
-	static inline PerfMode perfMode;              ///< VR-only: render engine at upscaled-render res
+	static inline PerfMode perfMode;              ///< Shared flat/VR scene-resolution resources.
 	static inline FoveatedRender foveatedRender;  ///< VR-only: foveated subrect DLSS
 
 	Util::LazyShader<ID3D11PixelShader> copyDepthToSharedBufferPS;
@@ -415,13 +406,7 @@ public:
 	/**
 	 * @brief Standalone full-resolution underwater mask repair (VR).
 	 *
-	 * Same draw as UpscaleDepth's mask branch on the full-resolution path,
-	 * extracted so callers that bypass the standard upscale flow (notably
-	 * PerfMode::HandlePostProcessing, where engine RTs are pre-shrunk to
-	 * renderRes and DLSS targets a private displayRes texture) can drive
-	 * the repair without going through UpscaleDepth's wider envelope.
-	 * Sets and leaves D3D11 pipeline state dirty on exit — wrap in your
-	 * own save/restore (e.g. Util::FullscreenPassScope).
+	 * Requires native scene depth; callers must preserve their D3D11 pipeline state.
 	 */
 	void RunUnderwaterMaskRepair();
 
@@ -433,9 +418,7 @@ public:
 	void ApplySharpening();
 
 	/**
-	 * @brief Whether PerfMode's zero-copy sharpening redirect (DLSS writes refraTempTex
-	 * instead of testTexture) is active this frame. Shared by Streamline::Upscale (which
-	 * picks colorOut) and PerfMode::MaybeBlitMenuBG (which must resolve the redirect).
+	 * @brief Whether DLSS sharpening is enabled in the selected settings.
 	 */
 	bool IsDlssSharpeningEnabled() const { return settings.sharpnessEnabledDLSS && settings.sharpnessDLSS > 0.0f; }
 

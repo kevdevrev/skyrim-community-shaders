@@ -18,6 +18,7 @@
 #include "ShaderCache.h"
 #include "State.h"
 #include "TerrainShadows.h"
+#include "Upscaling.h"
 #include "Utils/D3D.h"
 #include "Utils/DevBenchUx.h"
 #include "Utils/Game.h"
@@ -430,6 +431,7 @@ void Effects11::LoadRaindropTexture()
 
 void Effects11::SetupResources()
 {
+	PerfMode::DisplayScope displayResources(globals::features::upscaling.perfMode);
 	Initialize();
 
 	// Initialize() -> Apply() already loads the raindrop texture; do not load it again here.

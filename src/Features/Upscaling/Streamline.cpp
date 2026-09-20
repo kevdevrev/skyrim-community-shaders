@@ -565,15 +565,11 @@ void Streamline::SetDLSSOptions(sl::ViewportHandle p_viewport, uint32_t width, u
 	// DLSS dispatch must match the renderRes the engine RTs were latched for,
 	// not the live preset.
 	auto& perfModeRef = globals::features::upscaling.perfMode;
-	const uint32_t qualityMode = perfModeRef.IsHookActive() ? perfModeRef.GetLatchedQualityMode() : globals::features::upscaling.settings.qualityMode;
+	const uint32_t qualityMode = perfModeRef.IsEnabled() ? perfModeRef.GetLatchedQualityMode() : globals::features::upscaling.settings.qualityMode;
 	dlssOptions.mode = DLSSModeForQualityMode(qualityMode);
 
 	auto state = globals::state;
 
-	// PerfMode bridge: state->screenSize.y is polluted to RenderRes by the
-	// BSOpenVR size hook; use perfMode's snapshot of the real DisplayRes when
-	// the hook is live so DLSS is created at the right scale. The width arg
-	// is already display-correct (caller computes from displaySize).
 	auto& perfMode = globals::features::upscaling.perfMode;
 	const bool dlssperfActive = perfMode.IsHookActive() && perfMode.GetTestTexture();
 
@@ -727,15 +723,6 @@ void Streamline::Upscale(ID3D11Resource* a_upscalingTexture, ID3D11Resource* a_r
 	auto screenSize = state->screenSize;
 	auto renderSize = Util::ConvertToDynamic(screenSize);
 
-	// PerfMode bridge: when the BSOpenVR size hook is live, state->screenSize
-	// is polluted to RenderRes (the spoofed HMD recommended size). DLSS must
-	// be told the TRUE DisplayRes for its output extent, otherwise NGX rejects
-	// the evaluate as InvalidParameter (0xbad00005) because the configured
-	// quality-scale doesn't match the actual extent ratio. The upscale also
-	// has to write into perfMode's private DisplayRes testTexture instead of
-	// the now-RenderRes kMAIN.
-	// DLSS input and output must not alias. Always write to the intermediate texture,
-	// then either sharpen or copy the result back to kMAIN.
 	auto& upscaling = globals::features::upscaling;
 	auto& perfMode = globals::features::upscaling.perfMode;
 	const bool dlssperfActive = perfMode.IsHookActive() && perfMode.GetTestTexture();

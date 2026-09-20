@@ -587,6 +587,7 @@ void PostProcessing::ClearShaderCache()
 
 void PostProcessing::SetupResources()
 {
+	PerfMode::DisplayScope displayResources(globals::features::upscaling.perfMode);
 	{
 		auto renderer = globals::game::renderer;
 		auto gameTexMain = renderer->GetRuntimeData().renderTargets[RE::RENDER_TARGETS::kMAIN];

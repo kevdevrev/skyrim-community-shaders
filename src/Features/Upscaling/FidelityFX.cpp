@@ -392,11 +392,6 @@ void FidelityFX::CreateFSRResources()
 	auto screenSize = state->screenSize;
 	auto renderSize = Util::ConvertToDynamic(screenSize);
 
-	// PerfMode bridge: when the BSOpenVR size hook is live, state->screenSize is polluted
-	// to renderRes (engine RTs were allocated small). FSR3 still needs to upscale to the
-	// real HMD display resolution, so use perfMode's snapshot for displaySize/maxUpscaleSize.
-	// maxRenderSize stays at screenSize (which IS renderRes under the hook — that's FSR's
-	// expected input extent).
 	auto& perfMode = globals::features::upscaling.perfMode;
 	const bool dlssperfActive = perfMode.IsHookActive();
 	const auto displaySize = dlssperfActive ? perfMode.GetDisplayScreenSize() : screenSize;

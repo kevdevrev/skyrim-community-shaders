@@ -275,11 +275,6 @@ HRESULT WINAPI hk_D3D11CreateDeviceAndSwapChainUpscaling(
 	return ret;
 }
 
-// VR PerfMode: on-by-default performance feature. The setting persists across method
-// switches (we don't auto-flip it when the user picks TAA/NONE), but the checkbox is
-// disabled outside upscalers that can target a separate displayRes output (DLSS, FSR);
-// kept visible-but-greyed so users see the option exists. Restart-gated: the BSOpenVR
-// size hook reads this at world load and sizes every engine RT off the boot value.
 void Upscaling::DrawPerfModeToggle()
 {
 	const auto upscaleMethod = GetUpscaleMethod();
@@ -288,7 +283,7 @@ void Upscaling::DrawPerfModeToggle()
 		upscaleMethod == UpscaleMethod::kFSR;
 	if (!methodSupportsPerf)
 		ImGui::BeginDisabled();
-	ImGui::Checkbox(T(TKEY("render_at_upscale_res"), "Render engine at upscaled resolution"), &settings.renderAtUpscaleRes);
+	ImGui::Checkbox(T(TKEY("render_at_upscale_res"), "Compact scene render targets"), &settings.renderAtUpscaleRes);
 	if (!methodSupportsPerf)
 		ImGui::EndDisabled();
 	// Hover tooltip always renders (so users learn what the option does even when greyed out).
@@ -296,16 +291,10 @@ void Upscaling::DrawPerfModeToggle()
 	// feature can't take effect otherwise, so a "pending restart" hint there would mislead.
 	if (auto _tt = Util::HoverTooltipWrapper()) {
 		ImGui::Text("%s", T(TKEY("render_at_upscale_res_tooltip"),
-							  "On by default. The engine pipeline allocates render targets at the upscaled-render\n"
-							  "resolution instead of the HMD display resolution; the upscaler (DLSS or FSR) writes\n"
-							  "its output to a private DisplayRes texture. Substantial VRAM and bandwidth savings,\n"
-							  "especially at high HMD resolutions.\n"
-							  "\n"
-							  "Locked to the Upscale Preset selected at launch: changing the preset (or this\n"
-							  "toggle) takes effect after a game restart. At Native AA (1.0x) there is no\n"
-							  "render-res reduction, so the lock stays off and preset changes apply live.\n"
-							  "\n"
-							  "Requires DLSS or FSR. Sharpness / model preset / Reflex remain live."));
+							  "Allocates smaller scene, deferred, and screen-space feature targets for DLSS or FSR.\n"
+							  "Post-processing and UI remain at output resolution. Supports flat and VR.\n"
+							  "Changes to this option or the active upscale preset require a restart.\n"
+							  "Native AA does not reduce the scene resolution."));
 	}
 	if (!methodSupportsPerf && settings.renderAtUpscaleRes)
 		Util::Text::Disabled("%s", T(TKEY("render_at_upscale_res_requires"), "Render-at-upscaled-resolution requires DLSS or FSR. Switch upscaler Method to activate."));
@@ -316,6 +305,9 @@ void Upscaling::DrawPerfModeToggle()
 		Util::Text::Disabled("%s", T(TKEY("render_at_upscale_res_native_noop"), "No effect at Native AA (1x): renders at full resolution; raise the Upscale Preset to engage."));
 	if (methodSupportsPerf)
 		Util::UI::DrawSettingDiff(bootSnapshot, settings, &Settings::renderAtUpscaleRes);
+
+	if (!globals::game::isVR)
+		return;
 
 	const bool scaleEditable = methodSupportsPerf && settings.renderAtUpscaleRes;
 	if (!scaleEditable)
@@ -376,7 +368,7 @@ void Upscaling::DrawPerformancePresets()
 		return;
 	// No pending-restart diff while an explicit scale owns the render res:
 	// the preset is inert and a restart wouldn't apply it.
-	if (perfMode.IsHookActive() && !perfMode.IsExplicitScaleLatched())
+	if (perfMode.IsEnabled() && !perfMode.IsExplicitScaleLatched())
 		Util::UI::DrawSettingDiff(bootSnapshot, settings, &Settings::qualityMode);
 }
 
@@ -617,12 +609,7 @@ void Upscaling::DrawSettings()
 	// Check the current upscale method
 	auto upscaleMethod = GetUpscaleMethod();
 
-	// PerfMode: BSOpenVR size hook + RT::Create run once at world load, so
-	// runtime reads of method/qualityMode route through the boot snapshot.
-	// The always-present explanation is plain text — only the staged-change
-	// diff uses the RestartNeeded color so users learn the cue means "you
-	// changed something that won't apply yet."
-	if (perfMode.IsHookActive()) {
+	if (perfMode.IsEnabled()) {
 		ImGui::TextWrapped("%s", T(TKEY("perfmode_active_note"),
 									 "Render-at-upscaled-resolution is active: Method and Upscale Preset changes only take effect after a game restart. "
 									 "Sharpness / model preset / Reflex remain live."));
@@ -674,7 +661,7 @@ void Upscaling::DrawSettings()
 			if (perfMode.IsExplicitScaleLatched()) {
 				Util::Text::Disabled("%s", T(TKEY("upscale_preset_ignored_render_scale"),
 											   "The Upscale Preset is ignored while VR Render Scale is set. Move it back to Auto to use the preset again (restart required)."));
-			} else if (perfMode.IsHookActive() &&
+			} else if (perfMode.IsEnabled() &&
 					   bootSnapshot.HasPendingChange(settings, &Settings::qualityMode)) {
 				const uint bm = std::clamp<uint>(bootSnapshot.Boot(&Settings::qualityMode), 0u, 4u);
 				const char* bootLabel = GetQualityModeName(bm);
@@ -725,10 +712,7 @@ void Upscaling::DrawSettings()
 			}
 		}
 
-		// VR PerfMode toggle, discovered here alongside the upscaler controls,
-		// and mirrored in the Performance hub.
-		if (globals::game::isVR)
-			DrawPerfModeToggle();
+		DrawPerfModeToggle();
 	}
 
 	const bool frameGenerationDx12PathActive = IsFrameGenerationDx12PathActive();
@@ -1310,9 +1294,9 @@ Upscaling::UpscaleMethod Upscaling::GetUpscaleMethod() const
 	// boot-latched method while DLSS is available; if DLSS drops out (RenderDoc / no-DLSS GPU)
 	// fall to FSR — the only other redirecting method — never a live or non-redirecting choice
 	// that would desync the fixed RT sizing.
-	if (globals::features::upscaling.perfMode.IsHookActive())
+	if (perfMode.IsEnabled())
 		return streamline.featureDLSS ?
-		           static_cast<UpscaleMethod>(bootSnapshot.Boot(&Settings::upscaleMethod)) :
+		           static_cast<UpscaleMethod>(perfMode.GetLatchedUpscaleMethod()) :
 		           UpscaleMethod::kFSR;
 
 	// No PerfMode: the DLSS-capable preference, or the no-DLSS preference when DLSS is unavailable —
@@ -1332,8 +1316,8 @@ bool Upscaling::PerfModePrerequisitesMet() const
 	const bool methodRedirectsOutput = method == UpscaleMethod::kDLSS || method == UpscaleMethod::kFSR;
 	// >1.0x: a sub-display render res to bank. Native AA (1.0x) banks nothing
 	// unless an explicit render scale supplies the sub-display res itself.
-	return globals::game::isVR && methodRedirectsOutput &&
-	       (GetQualityModeRatio(settings.qualityMode) > 1.0f || settings.vrRenderScale > 0.0f);
+	return methodRedirectsOutput &&
+	       (GetQualityModeRatio(settings.qualityMode) > 1.0f || (globals::game::isVR && settings.vrRenderScale > 0.0f));
 }
 
 bool Upscaling::ShouldEngagePerfMode() const
@@ -1745,10 +1729,6 @@ void Upscaling::EnsureVRIntermediateTextures()
 	auto screenSize = globals::state->screenSize;
 	auto renderSize = Util::ConvertToDynamic(screenSize);
 
-	// PerfMode: state->screenSize is polluted to RenderRes (the BSOpenVR size
-	// hook spoofs HMD-recommended size). DLSS output needs to land at real
-	// DisplayRes, so size the OUTPUT intermediates from perfMode's snapshot
-	// of the true HMD resolution. Input intermediates stay at renderSize.
 	const bool dlssperfActive = perfMode.IsHookActive() && perfMode.GetTestTexture();
 	const float2 outputSize = dlssperfActive ? perfMode.GetDisplayScreenSize() : screenSize;
 
@@ -1945,21 +1925,6 @@ void Upscaling::ConfigureUpscaling(RE::BSGraphics::State* a_viewport)
 	auto screenHeight = static_cast<int>(screenSize.y);
 
 	if (upscaleMethod != UpscaleMethod::kNONE && upscaleMethod != UpscaleMethod::kTAA) {
-		// PerfMode: when the BSOpenVR size hook is live, every engine RT was
-		// already allocated at RenderRes — so the DRS-style scale is identity.
-		// Jitter is still computed at the real DisplayRes phase ratio so the
-		// upscaler has enough sub-pixel diversity for reconstruction.
-		//
-		// The upscaleMethod here comes from GetUpscaleMethod(), which under
-		// PerfMode+hookActive is locked to the boot snapshot — so this gate
-		// reads the value the user had selected at game start, not what they
-		// later moved the slider to. Engine RTs were sized off that boot
-		// choice (irreversible — the size hook can't un-allocate them); the
-		// boot-snapshot lock keeps the runtime evaluate consistent with those
-		// allocations. UI staged-change banners explain the restart
-		// requirement for method/quality edits. Branch fires for both DLSS
-		// and FSR since both consume the renderRes engine RTs and write to
-		// perfMode.testTexture.
 		const bool dlssperfRenderResPath =
 			perfMode.IsHookActive() &&
 			(upscaleMethod == UpscaleMethod::kDLSS || upscaleMethod == UpscaleMethod::kFSR);
@@ -2043,6 +2008,8 @@ void Upscaling::SetupResources()
 
 	QueryPerformanceFrequency(&qpf);
 
+	CheckResources(UpscaleMethod::kNONE);
+
 	auto renderer = globals::game::renderer;
 	auto& main = renderer->GetRuntimeData().renderTargets[RE::RENDER_TARGETS::kMAIN];
 
@@ -2119,6 +2086,7 @@ void Upscaling::SetupResources()
 	DX::ThrowIfFailed(globals::d3d::device->CreateRasterizerState(&rasterizerDesc, upscaleRasterizerState.put()));
 
 	CheckResources(GetUpscaleMethod());
+	CreateUpscalingTextureResources(GetUpscaleMethod());
 
 	rcas.Initialize();
 
@@ -2215,6 +2183,12 @@ void UpdateCameraData()
 
 void Upscaling::PostDisplay()
 {
+	if (perfMode.IsHookActive()) {
+		perfMode.PrepareOutput();
+		perfMode.ResolveScene();
+		resolutionScale = { float(perfMode.GetRenderEyeWidth()) / perfMode.GetDisplayEyeWidth(),
+			float(perfMode.GetRenderEyeHeight()) / perfMode.GetDisplayEyeHeight() };
+	}
 	auto viewport = globals::game::graphicsState;
 
 	viewport->projectionPosScaleX = projectionPosScaleX;
@@ -2375,7 +2349,7 @@ bool Upscaling::IsUpscalingActive() const
 	}
 
 	// resolutionScale.x represents renderWidth / displayWidth.
-	return resolutionScale.x < .99f;
+	return perfMode.IsEnabled() || resolutionScale.x < .99f;
 }
 
 // Unified interface methods
@@ -2728,10 +2702,6 @@ void Upscaling::Upscale()
 				streamline.Upscale(Util::AsReal(main.texture), reactiveMaskTexture->resource.get(), transparencyCompositionMaskTexture->resource.get(), motionVectorCopyTexture->resource.get());
 			}
 		} else if (upscaleMethod == UpscaleMethod::kFSR) {
-			// PerfMode bridge: when the engine RTs are shrunk to renderRes, FSR's displayRes
-			// output must land in perfMode.testTexture (the private displayRes target used for
-			// OpenVR submit), not back in the now-small kMAIN. Mirrors Streamline's colorOut
-			// routing for DLSS.
 			auto& depth = renderer->GetDepthStencilData().depthStencils[RE::RENDER_TARGETS_DEPTHSTENCIL::kMAIN];
 			ID3D11Resource* fsrDepth = runtimeFsrDepthTexture ? runtimeFsrDepthTexture->resource.get() : Util::AsReal(depth.texture);
 			ID3D11Resource* fsrColorOut = (perfMode.IsHookActive() && perfMode.GetTestTexture()) ?
@@ -2749,8 +2719,10 @@ void Upscaling::Upscale()
 void Upscaling::PerformUpscaling()
 {
 	CS_GPU_PASS("Upscaling::PerformUpscaling");
+	perfMode.PrepareOutput();
 	Upscale();
-	UpscaleDepth();
+	if (!perfMode.IsHookActive())
+		UpscaleDepth();
 
 	auto& runtimeData = globals::game::graphicsState->GetRuntimeData();
 
@@ -3111,6 +3083,7 @@ void Upscaling::ApplySharpening()
 
 void Upscaling::Main_UpdateJitter::thunk(RE::BSGraphics::State* a_state)
 {
+	globals::features::upscaling.perfMode.BeginScene();
 	globals::features::upscaling.ConfigureTAA();
 	func(a_state);
 	globals::features::upscaling.ConfigureUpscaling(a_state);
@@ -3140,20 +3113,21 @@ void Upscaling::Main_PostProcessing::thunk(RE::ImageSpaceManager* a_this, uint32
 
 	auto& upscaling = globals::features::upscaling;
 	auto upscaleMethod = upscaling.GetUpscaleMethod();
+	const bool needsUpscaling = !upscaling.perfMode.IsEnabled() || upscaling.perfMode.IsHookActive();
 
-	if (upscaling.ShouldUseFrameGenerationThisFrame()) {
+	if (needsUpscaling && upscaling.ShouldUseFrameGenerationThisFrame()) {
 		if (postProcessing.loaded)
 			postProcessing.ClearBorderMotionVectorsForFrameGen();
 		upscaling.CopySharedD3D12Resources();
 	}
 
-	if (upscaleMethod != UpscaleMethod::kNONE && upscaleMethod != UpscaleMethod::kTAA) {
+	if (needsUpscaling && upscaleMethod != UpscaleMethod::kNONE && upscaleMethod != UpscaleMethod::kTAA) {
 		upscaling.PerformUpscaling();
-	} else if (globals::game::isVR) {
+	} else if (needsUpscaling && globals::game::isVR) {
 		upscaling.UpscaleDepth();
 	}
 
-	if (upscaleMethod == UpscaleMethod::kDLSS) {
+	if (needsUpscaling && upscaleMethod == UpscaleMethod::kDLSS) {
 		// FoveatedRender's DLSS output doesn't land in sharpenerTexture the
 		// way dev's path does (the route writes to its own per-eye intermediates
 		// and copies back to kMAIN/testTexture), so dev's zero-copy
@@ -3167,6 +3141,27 @@ void Upscaling::Main_PostProcessing::thunk(RE::ImageSpaceManager* a_this, uint32
 		}
 	}
 
+	if (upscaling.perfMode.IsHookActive()) {
+		upscaling.perfMode.ResolveScene();
+		upscaling.resolutionScale = {
+			float(upscaling.perfMode.GetRenderEyeWidth()) / upscaling.perfMode.GetDisplayEyeWidth(),
+			float(upscaling.perfMode.GetRenderEyeHeight()) / upscaling.perfMode.GetDisplayEyeHeight()
+		};
+		auto& runtime = globals::game::graphicsState->GetRuntimeData();
+		runtime.dynamicResolutionWidthRatio = runtime.dynamicResolutionHeightRatio = 1.0f;
+		runtime.dynamicResolutionPreviousWidthRatio = runtime.dynamicResolutionPreviousHeightRatio = 1.0f;
+		runtime.dynamicResolutionLock = 1;
+		UpdateCameraData();
+		globals::state->UpdateSharedData(false, false);
+		if (globals::game::isVR) {
+			Util::FullscreenPassScope scope(globals::d3d::context);
+			const auto savedJitter = upscaling.jitter;
+			upscaling.jitter = { 0, 0 };
+			upscaling.RunUnderwaterMaskRepair();
+			upscaling.jitter = savedJitter;
+		}
+	}
+
 	Util::SetTemporal(upscaleMethod == UpscaleMethod::kTAA);
 
 	// Redirect kFRAMEBUFFER to float texture before ISHDR runs so HDR values >1.0 survive
@@ -3175,28 +3170,7 @@ void Upscaling::Main_PostProcessing::thunk(RE::ImageSpaceManager* a_this, uint32
 	if (hdrLoaded)
 		globals::features::hdrDisplay.RedirectFramebuffer();
 
-	// PerfMode: hybrid Post — HandlePostProcessing performs a two-layer
-	// struct swap around the engine's func() so tonemap + refraction read
-	// the DisplayRes testTexture instead of the small kMAIN. The supplied
-	// lambda is the engine call we'd normally make directly.
-	//
-	// Upscaler gate: testTexture is populated by whichever upscaler ran
-	// (Streamline routes DLSS colorOut there, FidelityFX routes FSR
-	// colorOut there). Under PerfMode+hookActive, GetUpscaleMethod() returns
-	// the boot snapshot so this check evaluates against the install-time
-	// choice — staged UI method changes don't reach here until restart.
-	// ShouldHandlePost() covers the partial-init case (post resources
-	// missing).
-	const bool upscalerWritesTestTexture =
-		upscaleMethod == UpscaleMethod::kDLSS ||
-		upscaleMethod == UpscaleMethod::kFSR;
-	if (upscalerWritesTestTexture && globals::features::upscaling.perfMode.ShouldHandlePost()) {
-		globals::features::upscaling.perfMode.HandlePostProcessing([&]() {
-			func(a_this, a3, a_target, a_4, a_5);
-		});
-	} else {
-		func(a_this, a3, a_target, a_4, a_5);
-	}
+	func(a_this, a3, a_target, a_4, a_5);
 
 	// Restore kFRAMEBUFFER after ISHDR — hdrTexture now has the HDR scene
 	if (hdrLoaded)

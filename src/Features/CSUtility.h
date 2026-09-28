@@ -87,8 +87,11 @@ struct CSUtility : Feature
 
 	struct Settings
 	{
+		bool useAmbientEffectLighting = false;
 		float skyBrightness = 1.0f;
+		float cloudBrightness = 1.0f;
 		float skySaturation = 1.0f;
+		float cloudSaturation = 1.0f;
 		float ambientLightMult = 1.0f;
 		float directionalLightMult = 1.0f;
 		float pointLightMult = 1.0f;
@@ -102,10 +105,17 @@ struct CSUtility : Feature
 		float glowmapMult = 1.0f;
 		float effectLightingMult = 1.0f;
 		float skyGammaOffset = 0.0f;
+		float cloudGammaOffset = 0.0f;
+		float effectBrightness = 1.0f;
+		float skyStaticBrightness = 1.0f;
+		float skyStaticTransparency = 0.0f;
 		float fogGammaOffset = 0.0f;
 		float fogAlphaGammaOffset = 0.0f;
+		float fogIntensity = 1.0f;
 		float waterGammaOffset = 0.0f;
 		float vlGammaOffset = 0.0f;
+		float vlIntensity = 1.0f;
+		float sunGlareIntensity = 1.0f;
 		WaterSettings water;
 		DepthOfFieldOverride sceneDof;
 		DepthOfFieldOverride underwaterDof;
@@ -159,9 +169,20 @@ struct CSUtility : Feature
 		float waterParallaxStrength;
 		float skySaturation;
 		uint32_t waterParallaxQuality;
+		float cloudBrightness;
+		float cloudSaturation;
+		float cloudGammaOffset;
+		float fogIntensity;
+		float vlIntensity;
+		float sunGlareIntensity;
+		uint32_t useAmbientEffectLighting;
+		float skyStaticTransparency;
+		float effectBrightness;
+		float skyStaticBrightness;
+		float padding[2];
 	};
 	STATIC_ASSERT_ALIGNAS_16(PerFrameData);
-	static_assert(sizeof(PerFrameData) == 128);
+	static_assert(sizeof(PerFrameData) == 176);
 
 	struct alignas(16) VanillaPointLightData
 	{
@@ -187,6 +208,8 @@ struct CSUtility : Feature
 	virtual void SetupResources() override;
 	virtual void PostPostLoad() override;
 	virtual void DataLoaded() override;
+	/** Scales the current weather's effect and sky static colors. */
+	virtual void OnWeatherColorsUpdated(RE::Sky* a_sky) override;
 
 	PerFrameData GetCommonBufferData() const;
 	void UpdateVanillaPointLightData(RE::BSRenderPass* a_pass, uint32_t a_lightCount);

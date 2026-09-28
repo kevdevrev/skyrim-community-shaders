@@ -66,11 +66,18 @@ namespace Color
 			dot(v4, kBlueVec4) + dot(v2, kBlueVec2));
 	}
 
+	float RGBToLuminance(float3 color, float3 luminanceWeights)
+	{
+		return dot(color, luminanceWeights);
+	}
+
+	static const float3 kRec709LuminanceWeights = float3(0.2125, 0.7154, 0.0721);
+
 #if defined(PSHADER) || defined(CSHADER) || defined(COMPUTESHADER)
 	float RGBToLuminance(float3 color)
 	{
 		// AP1 (ACEScg) luminance coefficients from AP1_2_XYZ_MAT Y row
-		return ENABLE_ACEScg ? dot(color, float3(0.2722287168, 0.6740817658, 0.0536895174)) : dot(color, float3(0.2125, 0.7154, 0.0721));
+		return ENABLE_ACEScg ? dot(color, float3(0.2722287168, 0.6740817658, 0.0536895174)) : dot(color, kRec709LuminanceWeights);
 	}
 
 	float RGBToLuminanceAlternative(float3 color)
@@ -87,7 +94,7 @@ namespace Color
 #else
 	float RGBToLuminance(float3 color)
 	{
-		return dot(color, float3(0.2125, 0.7154, 0.0721));
+		return dot(color, kRec709LuminanceWeights);
 	}
 
 	float RGBToLuminanceAlternative(float3 color)
@@ -417,13 +424,19 @@ namespace Color
 
 	float3 Fog(float3 color)
 	{
-		return AdjustedAuthoredColor(color, SharedData::csUtilitySettings.fogGammaOffset);
+		float gammaOffset = SharedData::csUtilitySettings.fogGammaOffset;
+#	if defined(EXP_HEIGHT_FOG)
+		if (SharedData::exponentialHeightFogSettings.enabled && SharedData::exponentialHeightFogSettings.disableVanillaFog)
+			gammaOffset = 0.0;
+#	endif
+		return AdjustedAuthoredColor(color, gammaOffset);
 	}
 
 	float FogAlpha(float alpha)
 	{
 		float gammaOffset = SharedData::csUtilitySettings.fogAlphaGammaOffset;
-		return gammaOffset == 0.0 ? alpha : pow(saturate(alpha), clamp(1.0 + gammaOffset, MinAdjustedGamma, MaxAdjustedGamma));
+		alpha = gammaOffset == 0.0 ? alpha : pow(saturate(alpha), clamp(1.0 + gammaOffset, MinAdjustedGamma, MaxAdjustedGamma));
+		return saturate(alpha * SharedData::csUtilitySettings.fogIntensity);
 	}
 
 	float3 BlendFog(float3 color, float3 fogColor, float fogFactor, float colorScale, float fogColorScale)
@@ -446,7 +459,11 @@ namespace Color
 
 	float3 Sky(float3 color)
 	{
+#	if defined(CLOUDS)
+		return AdjustedAuthoredColor(color, SharedData::csUtilitySettings.cloudGammaOffset);
+#	else
 		return AdjustedAuthoredColor(color, SharedData::csUtilitySettings.skyGammaOffset);
+#	endif
 	}
 
 	float3 Water(float3 color)
@@ -458,9 +475,9 @@ namespace Color
 	{
 		float gammaOffset = SharedData::csUtilitySettings.vlGammaOffset;
 		if (gammaOffset == 0.0)
-			return ENABLE_LL ? AuthoredGammaToLinear(intensity.xxx).x : intensity;
+			return (ENABLE_LL ? AuthoredGammaToLinear(intensity.xxx).x : intensity) * SharedData::csUtilitySettings.vlIntensity;
 		float gamma = (ENABLE_LL ? SharedData::linearLightingSettings.authoredColorGamma : 1.0) + gammaOffset;
-		return sign(intensity) * pow(abs(intensity), clamp(gamma, MinAdjustedGamma, MaxAdjustedGamma));
+		return sign(intensity) * pow(abs(intensity), clamp(gamma, MinAdjustedGamma, MaxAdjustedGamma)) * SharedData::csUtilitySettings.vlIntensity;
 	}
 
 	float3 RadianceToLinear(float3 color)

@@ -24,10 +24,16 @@
 #include <cmath>
 #include <directx/d3dx12.h>
 #include <format>
+#include <mutex>
 
 #include "Features/PostProcessing.h"
 
 #define I18N_KEY_PREFIX "feature.upscaling."
+
+namespace NR
+{
+	NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(Tuning, intensity, localToneStrength, localStructureStrength, skinStructureStrength, style, useAutoMask);
+}
 
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(
 	Upscaling::Settings,
@@ -45,6 +51,8 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(
 	sharpnessEnabledDLSS,
 	sharpnessDLSS,
 	presetDLSS,
+	neuralRenderingEnabled,
+	neuralRenderingTuning,
 	reflexLowLatencyMode,
 	reflexLowLatencyBoost,
 	reflexUseMarkersToOptimize,
@@ -543,6 +551,45 @@ std::string Upscaling::GetProfilePreviewText(PerfProfile profile) const
 		std::make_format_args(cropLabel, dlssModeName, stretchModeName, peripheryAAName, blendModeName));
 }
 
+namespace
+{
+	/** @brief Devbench payload for Upscaling's neuralRenderingStatus query. */
+	json NeuralRenderingStatus(const Feature* self, const json&)
+	{
+		const auto* upscaling = static_cast<const Upscaling*>(self);
+		const auto status = upscaling->neuralRendering.GetStatus();
+		return json{
+			{ "enabled", upscaling->settings.neuralRenderingEnabled },
+			{ "state", magic_enum::enum_name(status.state) },
+			{ "status", status.text },
+			{ "failed", status.failed },
+			{ "runtime", status.runtimeVersion },
+			{ "width", status.width },
+			{ "height", status.height },
+			{ "eyes", status.eyes },
+			{ "ngxResult", json::array({ status.ngxResult[0], status.ngxResult[1] }) },
+			{ "lastAppliedFrame", status.lastAppliedFrame },
+			{ "appliedFrames", status.appliedFrames },
+		};
+	}
+
+	/** @brief Devbench handler for Upscaling's retryNeuralRendering command. */
+	void RetryNeuralRendering(Feature* self, const json&)
+	{
+		static_cast<Upscaling*>(self)->neuralRendering.RequestRetry();
+	}
+
+	/** @brief Devbench handler for Upscaling's captureNeuralRendering command. */
+	void CaptureNeuralRendering(Feature* self, const json&)
+	{
+		if (!globals::state || !globals::state->IsDeveloperMode()) {
+			logger::warn("[NeuralRendering] captureNeuralRendering requires developer mode");
+			return;
+		}
+		static_cast<Upscaling*>(self)->neuralRendering.RequestCapture();
+	}
+}
+
 void Upscaling::RegisterUxActions()
 {
 	FEATURE_COMMAND("applyFoveationPreset",
@@ -550,12 +597,62 @@ void Upscaling::RegisterUxActions()
 		[](Feature*, const json& args) {
 			foveatedRender.subrectController.ApplyPresetByName(args.value("name", std::string{}));
 		});
+
+	FEATURE_QUERY("neuralRenderingStatus",
+		"Neural Rendering state: the status line the settings panel shows, the failure latch, the accepted nvngx_dlssnr.dll version, render size and eyes, per-eye NGX result codes, and how many frames it has applied. Params: none.",
+		NeuralRenderingStatus);
+
+	FEATURE_COMMAND("retryNeuralRendering",
+		"Queue one Neural Rendering retry: the same flag the Retry NR button sets. The next enabled world frame retires and rebuilds a failed runtime, and the request resets history; a healthy runtime is not rebuilt. Params: none.",
+		RetryNeuralRendering);
+
+	FEATURE_COMMAND("captureNeuralRendering",
+		"Capture the next Neural Rendering frame: the scene before the pass, the NR input and output and both composite stages are written as DDS files under the CommunityShaders Captures folder. Requires developer mode; a request without it logs a warning and captures nothing. Params: none.",
+		CaptureNeuralRendering);
 }
 
 void Upscaling::DrawSettings()
 {
-	// Force method to None up front so the picker reflects the locked state.
 	ApplyOpenCompositeUpscalingBlocker();
+	if (!ImGui::BeginTabBar("##UpscalingTabs"))
+		return;
+
+	if (ImGui::BeginTabItem(GetDisplayName().c_str())) {
+		DrawUpscalingSettings();
+		ImGui::EndTabItem();
+	}
+
+	if (!globals::game::isVR && ImGui::BeginTabItem(T(TKEY("frame_generation"), "Frame Generation"))) {
+		DrawFrameGenerationSettings();
+		ImGui::EndTabItem();
+	}
+
+	const bool reflexSupported = streamline.reflexSupportedOnCurrentAdapter || streamlineDX12.reflexSupportedOnCurrentAdapter;
+	if (reflexSupported && ImGui::BeginTabItem(T(TKEY("nvidia_reflex"), "NVIDIA Reflex"))) {
+		DrawReflexSettings();
+		ImGui::EndTabItem();
+	}
+
+	if (globals::game::isVR && ImGui::BeginTabItem(T(TKEY("tab_foveation"), "Foveation"))) {
+		DrawFoveationControls();
+		ImGui::EndTabItem();
+	}
+
+	if (ImGui::BeginTabItem(std::format("{}###NeuralRendering", Util::AppendReleaseStageTag(T(TKEY("tab_neural_rendering"), "Neural Rendering"), Feature::ReleaseStage::Alpha)).c_str())) {
+		neuralRendering.DrawSettings(settings.neuralRenderingEnabled, settings.neuralRenderingTuning);
+		ImGui::EndTabItem();
+	}
+
+	if (ImGui::BeginTabItem(T(TKEY("backend_diagnostics"), "Backend Diagnostics"))) {
+		DrawBackendDiagnostics();
+		ImGui::EndTabItem();
+	}
+
+	ImGui::EndTabBar();
+}
+
+void Upscaling::DrawUpscalingSettings()
+{
 	const auto& openCompositeBlocker = GetOpenCompositeUpscalingBlocker();
 	const bool openCompositeBlocksUpscaling = openCompositeBlocker.active;
 
@@ -730,274 +827,264 @@ void Upscaling::DrawSettings()
 		if (globals::game::isVR)
 			DrawPerfModeToggle();
 	}
+}
 
+void Upscaling::DrawFrameGenerationSettings()
+{
 	const bool frameGenerationDx12PathActive = IsFrameGenerationDx12PathActive();
 
-	if (!globals::game::isVR) {
-		if (ImGui::TreeNodeEx(T(TKEY("frame_generation"), "Frame Generation"), ImGuiTreeNodeFlags_DefaultOpen)) {
-			ImGui::Text("%s", T(TKEY("frame_generation_desc"),
-								  "Frame Generation interpolates real frames with generated ones for a smoother experience"));
+	ImGui::Text("%s", T(TKEY("frame_generation_desc"),
+						  "Frame Generation interpolates real frames with generated ones for a smoother experience"));
 
-			bool fgEnabled = settings.frameGenerationMode != 0;
-			if (ImGui::Checkbox(T(TKEY("frame_generation"), "Frame Generation"), &fgEnabled))
-				settings.frameGenerationMode = fgEnabled ? 1 : 0;
-			Util::UI::RestartGatedAnnotate(bootSnapshot, settings, &Settings::frameGenerationMode,
-				T(TKEY("frame_generation_tooltip"),
-					"Interpolate real frames with generated ones for a smoother experience. Uses NVIDIA\n"
-					"DLSS-G or AMD FSR Frame Generation depending on the adapter and preference below.\n"
-					"Requires a D3D11-to-D3D12 proxy swapchain which can introduce compatibility issues;\n"
-					"in particular, frame generation works only in windowed mode."));
+	bool fgEnabled = settings.frameGenerationMode != 0;
+	if (ImGui::Checkbox(T(TKEY("frame_generation"), "Frame Generation"), &fgEnabled))
+		settings.frameGenerationMode = fgEnabled ? 1 : 0;
+	Util::UI::RestartGatedAnnotate(bootSnapshot, settings, &Settings::frameGenerationMode,
+		T(TKEY("frame_generation_tooltip"),
+			"Interpolate real frames with generated ones for a smoother experience. Uses NVIDIA\n"
+			"DLSS-G or AMD FSR Frame Generation depending on the adapter and preference below.\n"
+			"Requires a D3D11-to-D3D12 proxy swapchain which can introduce compatibility issues;\n"
+			"in particular, frame generation works only in windowed mode."));
 
-			auto fgMethod = GetFrameGenMethod();
-			if (fgMethod == FrameGenMethod::kDLSSG) {
-				ImGui::TextColored(Util::Colors::GetSuccess(), "%s", T(TKEY("frame_generation_dlssg_active"), "Using NVIDIA DLSS Frame Generation (Auto)"));
-			} else if (fgMethod == FrameGenMethod::kFSR) {
-				if (streamlineDX12.featureDLSSG)
-					ImGui::TextColored(Util::Colors::GetInfo(), "%s", T(TKEY("frame_generation_fsr_active_preferred"), "Using AMD FSR Frame Generation (Preferred)"));
-				else
-					ImGui::TextColored(Util::Colors::GetInfo(), "%s", T(TKEY("frame_generation_fsr_active"), "Using AMD FSR Frame Generation (Auto)"));
+	auto fgMethod = GetFrameGenMethod();
+	if (fgMethod == FrameGenMethod::kDLSSG) {
+		ImGui::TextColored(Util::Colors::GetSuccess(), "%s", T(TKEY("frame_generation_dlssg_active"), "Using NVIDIA DLSS Frame Generation (Auto)"));
+	} else if (fgMethod == FrameGenMethod::kFSR) {
+		if (streamlineDX12.featureDLSSG)
+			ImGui::TextColored(Util::Colors::GetInfo(), "%s", T(TKEY("frame_generation_fsr_active_preferred"), "Using AMD FSR Frame Generation (Preferred)"));
+		else
+			ImGui::TextColored(Util::Colors::GetInfo(), "%s", T(TKEY("frame_generation_fsr_active"), "Using AMD FSR Frame Generation (Auto)"));
+	} else {
+		if (streamlineDX12.featureDLSSG)
+			ImGui::Text("%s", T(TKEY("frame_generation_dlssg_available"),
+								  "NVIDIA DLSS Frame Generation is available."));
+		else if (fidelityFX.featureFSR3FG)
+			ImGui::Text("%s", T(TKEY("frame_generation_fsr_available"),
+								  "AMD FSR Frame Generation is available."));
+	}
+
+	if (streamlineDX12.featureDLSSG) {
+		ImGui::Checkbox(T(TKEY("prefer_fsr_frame_gen"), "Prefer AMD FSR Frame Generation"), &settings.preferFSRFrameGen);
+		Util::UI::RestartGatedAnnotate(bootSnapshot, settings, &Settings::preferFSRFrameGen,
+			T(TKEY("prefer_fsr_frame_gen_tooltip"),
+				"Uses AMD FSR3 Frame Generation instead of NVIDIA DLSS-G. This is a workaround for\n"
+				"cases where DLSS-G initializes successfully but produces no interpolated frames.\n"
+				"Restart required to apply."));
+	}
+
+	if (fgMethod == FrameGenMethod::kDLSSG) {
+		int multiplier = static_cast<int>(settings.dlssgFramesToGenerate) + 1;
+		int maxMultiplier = static_cast<int>(streamlineDX12.dlssgMaxFramesToGenerate) + 1;
+		if (ImGui::SliderInt(T(TKEY("dlssg_frame_multiplier"), "DLSS-G Frame Multiplier"), &multiplier, 2, maxMultiplier))
+			settings.dlssgFramesToGenerate = static_cast<uint>(multiplier - 1);
+		if (auto _tt = Util::HoverTooltipWrapper())
+			ImGui::Text("%s", T(TKEY("dlssg_frame_multiplier_tooltip"), "How many total frames are shown per rendered frame. Higher values generate more frames."));
+	} else if (fgMethod == FrameGenMethod::kFSR) {
+		ImGui::Text("%s", T(TKEY("fsr_frame_gen_fixed_multiplier"), "AMD FSR Frame Generation: Fixed 2x"));
+	}
+
+	ImGui::Text("%s", T(TKEY("frame_generation_proxy_note"), "Requires a D3D11 to D3D12 proxy which can create compatibility issues"));
+
+	if (!isWindowed) {
+		Util::Text::Warning("%s", T(TKEY("fg_warn_windowed"), "Warning: Requires windowed mode"));
+	}
+
+	if (lowRefreshRate && !settings.frameGenerationForceEnable) {
+		Util::Text::Warning("%s", T(TKEY("fg_warn_refresh_rate"), "Warning: Requires a high refresh rate monitor or Force Enable Frame Generation"));
+	}
+
+	if (fidelityFXMissing) {
+		Util::Text::Warning("%s", T(TKEY("fg_warn_fidelityfx_missing"), "Warning: FidelityFX DLLs are not loaded"));
+	}
+
+	if (!frameGenerationDx12PathActive)
+		ImGui::BeginDisabled();
+
+	bool flEnabled = settings.frameLimitMode != 0;
+	if (ImGui::Checkbox(T(TKEY("frame_limit_vrr"), "Frame Limit (Variable Refresh Rate)"), &flEnabled))
+		settings.frameLimitMode = flEnabled ? 1 : 0;
+
+	if (!frameGenerationDx12PathActive)
+		ImGui::EndDisabled();
+
+	ImGui::TextWrapped(T(TKEY("frame_limit_refresh_rate"), "Allows frame generation to function on low refresh rate monitors. Detected: %.2f Hz"), refreshRate);
+	bool fgForce = settings.frameGenerationForceEnable != 0;
+	if (ImGui::Checkbox(T(TKEY("force_enable_frame_generation"), "Force Enable Frame Generation"), &fgForce))
+		settings.frameGenerationForceEnable = fgForce ? 1 : 0;
+	Util::UI::RestartGatedAnnotate(bootSnapshot, settings, &Settings::frameGenerationForceEnable,
+		T(TKEY("force_enable_frame_generation_tooltip"),
+			"Bypass the high-refresh-rate monitor check so Frame Generation can run on lower-Hz\n"
+			"displays. Useful for laptops and older monitors at the cost of less headroom for the\n"
+			"generated frames."));
+
+	ImGui::Checkbox(T(TKEY("frame_generation_in_menus"), "Frame Generation in Menus"), &settings.frameGenerationAllowInMenus);
+	if (auto _tt = Util::HoverTooltipWrapper()) {
+		ImGui::TextUnformatted(T(TKEY("frame_generation_in_menus_tooltip_1"), "Keeps frame generation active while game menus are open."));
+		ImGui::TextUnformatted(T(TKEY("frame_generation_in_menus_tooltip_2"), "May feel smoother, but increases menu input latency."));
+	}
+}
+
+void Upscaling::DrawReflexSettings()
+{
+	const bool usingDX12Reflex = UsesDLSSGFrameGen();
+	auto& activeReflex = usingDX12Reflex ? streamlineDX12 : streamline;
+	const bool reflexAvailable = activeReflex.initialized && activeReflex.featureReflex;
+	const bool markerOptimizationAvailable = reflexAvailable && activeReflex.featurePCL;
+
+	if (usingDX12Reflex) {
+		ImGui::Text("%s", T(TKEY("reflex_via_dx12"), "Reflex is running via DX12 (DLSS Frame Generation active)."));
+	}
+
+	if (!reflexAvailable) {
+		ImGui::TextDisabled("%s", T(TKEY("reflex_not_available"), "Reflex is not available. Ensure sl.reflex.dll is present and restart."));
+	}
+
+	if (!reflexAvailable)
+		ImGui::BeginDisabled();
+
+	ImGui::Checkbox(T(TKEY("low_latency_mode"), "Low Latency Mode"), &settings.reflexLowLatencyMode);
+	if (auto _tt = Util::HoverTooltipWrapper()) {
+		ImGui::TextUnformatted(T(TKEY("low_latency_mode_tooltip_1"), "Cuts input delay by syncing CPU work closer to the GPU."));
+		ImGui::TextUnformatted(T(TKEY("low_latency_mode_tooltip_2"), "Can reduce max FPS a little, but usually feels more responsive."));
+	}
+
+	if (!settings.reflexLowLatencyMode)
+		ImGui::BeginDisabled();
+
+	ImGui::Checkbox(T(TKEY("low_latency_boost"), "Low Latency Boost"), &settings.reflexLowLatencyBoost);
+	if (auto _tt = Util::HoverTooltipWrapper()) {
+		ImGui::TextUnformatted(T(TKEY("low_latency_boost_tooltip_1"), "Keeps GPU clocks higher to avoid latency spikes at low GPU load."));
+		ImGui::TextUnformatted(T(TKEY("low_latency_boost_tooltip_2"), "Useful if frametime jumps; costs extra power and heat."));
+	}
+
+	if (!markerOptimizationAvailable)
+		ImGui::BeginDisabled();
+
+	ImGui::Checkbox(T(TKEY("use_markers_to_optimize"), "Use Markers To Optimize"), &settings.reflexUseMarkersToOptimize);
+	if (auto _tt = Util::HoverTooltipWrapper()) {
+		ImGui::TextUnformatted(T(TKEY("use_markers_to_optimize_tooltip_1"), "Uses frame markers for tighter Reflex timing."));
+		ImGui::TextUnformatted(T(TKEY("use_markers_to_optimize_tooltip_2"), "Try On first; turn Off if it causes stutter on your setup."));
+	}
+
+	if (!markerOptimizationAvailable)
+		ImGui::EndDisabled();
+
+	if (!markerOptimizationAvailable) {
+		ImGui::TextDisabled("%s", T(TKEY("marker_optimization_unavailable"), "Marker optimization unavailable (PCL not loaded)."));
+	}
+
+	ImGui::Checkbox(T(TKEY("use_fps_limit"), "Use FPS Limit"), &settings.reflexUseFPSLimit);
+	if (auto _tt = Util::HoverTooltipWrapper()) {
+		ImGui::TextUnformatted(T(TKEY("use_fps_limit_tooltip_1"), "Uses Reflex's internal FPS cap for steadier frametimes."));
+		ImGui::TextUnformatted(T(TKEY("use_fps_limit_tooltip_2"), "Can lower latency versus uncapped rendering."));
+	}
+
+	if (!settings.reflexLowLatencyMode)
+		ImGui::EndDisabled();
+
+	if (!settings.reflexUseFPSLimit)
+		ImGui::BeginDisabled();
+
+	if (!std::isfinite(settings.reflexFPSLimit))
+		settings.reflexFPSLimit = 60.0f;
+	settings.reflexFPSLimit = std::clamp(settings.reflexFPSLimit, 20.0f, 240.0f);
+	ImGui::SliderFloat(T(TKEY("fps_limit"), "FPS Limit"), &settings.reflexFPSLimit, 20.0f, 240.0f, "%.0f");
+	if (auto _tt = Util::HoverTooltipWrapper()) {
+		ImGui::TextUnformatted(T(TKEY("fps_limit_tooltip_1"), "Set your frame cap target."));
+		ImGui::TextUnformatted(T(TKEY("fps_limit_tooltip_2"), "Start about 2-3 FPS below refresh rate (e.g. 117 for 120 Hz)."));
+	}
+
+	if (!settings.reflexUseFPSLimit)
+		ImGui::EndDisabled();
+
+	if (!reflexAvailable)
+		ImGui::EndDisabled();
+}
+
+void Upscaling::DrawBackendDiagnostics()
+{
+	// Streamline log level selection
+	const char* logLevels[] = {
+		T(TKEY("streamline_log_level_off"), "Off"),
+		T(TKEY("streamline_log_level_default"), "Default"),
+		T(TKEY("streamline_log_level_verbose"), "Verbose")
+	};
+	// streamlineLogLevel is sanitized in LoadSettings (runs on every load,
+	// not gated on this node being expanded), so the stored value is in range.
+	int logLevelIdx = static_cast<int>(settings.streamlineLogLevel);
+	if (ImGui::Combo(T(TKEY("streamline_logging"), "Streamline Logging"), &logLevelIdx, logLevels, IM_ARRAYSIZE(logLevels))) {
+		settings.streamlineLogLevel = static_cast<uint>(logLevelIdx);
+	}
+	Util::UI::RestartGatedAnnotate(bootSnapshot, settings, &Settings::streamlineLogLevel,
+		T(TKEY("streamline_logging_tooltip"),
+			"Verbosity of the NVIDIA Streamline backend logs. Useful for debugging issues with DLSS / "
+			"DLSS-G."));
+
+	// VR Debug visualization -- per-eye buffers and native inputs
+	if (globals::game::isVR) {
+		ImGui::Separator();
+		static float debugRescale = 0.15f;
+		ImGui::SliderFloat(T(TKEY("view_resize"), "View Resize"), &debugRescale, 0.05f, 1.f);
+
+		if (ImGui::TreeNode(T(TKEY("upscaling_intermediates"), "Upscaling Intermediates"))) {
+			if (vrIntermediateMotionVectors[0]) {
+				bool isDLSS = GetUpscaleMethod() == UpscaleMethod::kDLSS;
+				if (vrIntermediateColorIn[0] && vrIntermediateColorOut[0]) {
+					BUFFER_VIEWER_NODE_TITLE(vrIntermediateColorIn[0], "Left Eye In", debugRescale)
+					BUFFER_VIEWER_NODE_TITLE(vrIntermediateColorIn[1], "Right Eye In", debugRescale)
+					if (!isDLSS)
+						BUFFER_VIEWER_NODE_TITLE(vrIntermediateColorOut[0], "Left Eye Out", debugRescale)
+					BUFFER_VIEWER_NODE_TITLE(vrIntermediateColorOut[1], "Right Eye Out", debugRescale)
+				}
+				BUFFER_VIEWER_NODE_TITLE(vrIntermediateMotionVectors[0], "Left Eye MVec", debugRescale)
+				BUFFER_VIEWER_NODE_TITLE(vrIntermediateMotionVectors[1], "Right Eye MVec", debugRescale)
+				BUFFER_VIEWER_NODE_TITLE(vrIntermediateReactiveMask[0], "Left Eye Reactive", debugRescale)
+				BUFFER_VIEWER_NODE_TITLE(vrIntermediateReactiveMask[1], "Right Eye Reactive", debugRescale)
+				if (vrIntermediateTransparencyMask[0]) {
+					BUFFER_VIEWER_NODE_TITLE(vrIntermediateTransparencyMask[0], "Left Eye Transparency", debugRescale)
+					BUFFER_VIEWER_NODE_TITLE(vrIntermediateTransparencyMask[1], "Right Eye Transparency", debugRescale)
+				}
 			} else {
-				if (streamlineDX12.featureDLSSG)
-					ImGui::Text("%s", T(TKEY("frame_generation_dlssg_available"),
-										  "NVIDIA DLSS Frame Generation is available."));
-				else if (fidelityFX.featureFSR3FG)
-					ImGui::Text("%s", T(TKEY("frame_generation_fsr_available"),
-										  "AMD FSR Frame Generation is available."));
+				ImGui::TextDisabled("%s", T(TKEY("vr_intermediates_not_created"), "VR intermediates not yet created (enter game world)"));
 			}
+			ImGui::TreePop();
+		}
 
-			if (streamlineDX12.featureDLSSG) {
-				ImGui::Checkbox(T(TKEY("prefer_fsr_frame_gen"), "Prefer AMD FSR Frame Generation"), &settings.preferFSRFrameGen);
-				Util::UI::RestartGatedAnnotate(bootSnapshot, settings, &Settings::preferFSRFrameGen,
-					T(TKEY("prefer_fsr_frame_gen_tooltip"),
-						"Uses AMD FSR3 Frame Generation instead of NVIDIA DLSS-G. This is a workaround for\n"
-						"cases where DLSS-G initializes successfully but produces no interpolated frames.\n"
-						"Restart required to apply."));
-			}
+		if (ImGui::TreeNode(T(TKEY("native_inputs"), "Native Inputs"))) {
+			auto renderer = globals::game::renderer;
+			auto& main = renderer->GetRuntimeData().renderTargets[RE::RENDER_TARGETS::kMAIN];
+			auto& mvec = renderer->GetRuntimeData().renderTargets[RE::RENDER_TARGETS::kMOTION_VECTOR];
+			auto& depth = renderer->GetDepthStencilData().depthStencils[RE::RENDER_TARGETS_DEPTHSTENCIL::kMAIN];
 
-			if (fgMethod == FrameGenMethod::kDLSSG) {
-				int multiplier = static_cast<int>(settings.dlssgFramesToGenerate) + 1;
-				int maxMultiplier = static_cast<int>(streamlineDX12.dlssgMaxFramesToGenerate) + 1;
-				if (ImGui::SliderInt(T(TKEY("dlssg_frame_multiplier"), "DLSS-G Frame Multiplier"), &multiplier, 2, maxMultiplier))
-					settings.dlssgFramesToGenerate = static_cast<uint>(multiplier - 1);
-				if (auto _tt = Util::HoverTooltipWrapper())
-					ImGui::Text("%s", T(TKEY("dlssg_frame_multiplier_tooltip"), "How many total frames are shown per rendered frame. Higher values generate more frames."));
-			} else if (fgMethod == FrameGenMethod::kFSR) {
-				ImGui::Text("%s", T(TKEY("fsr_frame_gen_fixed_multiplier"), "AMD FSR Frame Generation: Fixed 2x"));
-			}
+			auto DisplayRT = [&](const char* label, ID3D11Texture2D* tex, ID3D11ShaderResourceView* srv) {
+				if (srv && tex) {
+					D3D11_TEXTURE2D_DESC desc;
+					tex->GetDesc(&desc);
+					char buf[128];
+					snprintf(buf, sizeof(buf), "%s (%ux%u)", label, desc.Width, desc.Height);
+					if (ImGui::TreeNode(buf)) {
+						ImGui::Image(srv, { desc.Width * debugRescale, desc.Height * debugRescale });
+						ImGui::TreePop();
+					}
+				}
+			};
 
-			ImGui::Text("%s", T(TKEY("frame_generation_proxy_note"), "Requires a D3D11 to D3D12 proxy which can create compatibility issues"));
+			DisplayRT("kMAIN (Color Input)", Util::AsReal(main.texture), Util::AsReal(main.SRV));
+			DisplayRT("Motion Vectors", Util::AsReal(mvec.texture), Util::AsReal(mvec.SRV));
+			DisplayRT("Depth", Util::AsReal(depth.texture), Util::AsReal(depth.depthSRV));
 
-			if (!isWindowed) {
-				Util::Text::Warning("%s", T(TKEY("fg_warn_windowed"), "Warning: Requires windowed mode"));
-			}
-
-			if (lowRefreshRate && !settings.frameGenerationForceEnable) {
-				Util::Text::Warning("%s", T(TKEY("fg_warn_refresh_rate"), "Warning: Requires a high refresh rate monitor or Force Enable Frame Generation"));
-			}
-
-			if (fidelityFXMissing) {
-				Util::Text::Warning("%s", T(TKEY("fg_warn_fidelityfx_missing"), "Warning: FidelityFX DLLs are not loaded"));
-			}
-
-			if (!frameGenerationDx12PathActive)
-				ImGui::BeginDisabled();
-
-			bool flEnabled = settings.frameLimitMode != 0;
-			if (ImGui::Checkbox(T(TKEY("frame_limit_vrr"), "Frame Limit (Variable Refresh Rate)"), &flEnabled))
-				settings.frameLimitMode = flEnabled ? 1 : 0;
-
-			if (!frameGenerationDx12PathActive)
-				ImGui::EndDisabled();
-
-			ImGui::TextWrapped(T(TKEY("frame_limit_refresh_rate"), "Allows frame generation to function on low refresh rate monitors. Detected: %.2f Hz"), refreshRate);
-			bool fgForce = settings.frameGenerationForceEnable != 0;
-			if (ImGui::Checkbox(T(TKEY("force_enable_frame_generation"), "Force Enable Frame Generation"), &fgForce))
-				settings.frameGenerationForceEnable = fgForce ? 1 : 0;
-			Util::UI::RestartGatedAnnotate(bootSnapshot, settings, &Settings::frameGenerationForceEnable,
-				T(TKEY("force_enable_frame_generation_tooltip"),
-					"Bypass the high-refresh-rate monitor check so Frame Generation can run on lower-Hz\n"
-					"displays. Useful for laptops and older monitors at the cost of less headroom for the\n"
-					"generated frames."));
-
-			ImGui::Checkbox(T(TKEY("frame_generation_in_menus"), "Frame Generation in Menus"), &settings.frameGenerationAllowInMenus);
-			if (auto _tt = Util::HoverTooltipWrapper()) {
-				ImGui::TextUnformatted(T(TKEY("frame_generation_in_menus_tooltip_1"), "Keeps frame generation active while game menus are open."));
-				ImGui::TextUnformatted(T(TKEY("frame_generation_in_menus_tooltip_2"), "May feel smoother, but increases menu input latency."));
-			}
+			if (reactiveMaskTexture)
+				BUFFER_VIEWER_NODE_TITLE(reactiveMaskTexture, "Reactive Mask", debugRescale)
+			if (transparencyCompositionMaskTexture)
+				BUFFER_VIEWER_NODE_TITLE(transparencyCompositionMaskTexture, "Transparency Mask", debugRescale)
 
 			ImGui::TreePop();
 		}
 	}
 
-	const bool reflexSupported = streamline.reflexSupportedOnCurrentAdapter || streamlineDX12.reflexSupportedOnCurrentAdapter;
-	if (reflexSupported && ImGui::TreeNodeEx(T(TKEY("nvidia_reflex"), "NVIDIA Reflex"), ImGuiTreeNodeFlags_DefaultOpen)) {
-		const bool usingDX12Reflex = UsesDLSSGFrameGen();
-		auto& activeReflex = usingDX12Reflex ? streamlineDX12 : streamline;
-		const bool reflexAvailable = activeReflex.initialized && activeReflex.featureReflex;
-		const bool markerOptimizationAvailable = reflexAvailable && activeReflex.featurePCL;
-
-		if (usingDX12Reflex) {
-			ImGui::Text("%s", T(TKEY("reflex_via_dx12"), "Reflex is running via DX12 (DLSS Frame Generation active)."));
-		}
-
-		if (!reflexAvailable) {
-			ImGui::TextDisabled("%s", T(TKEY("reflex_not_available"), "Reflex is not available. Ensure sl.reflex.dll is present and restart."));
-		}
-
-		if (!reflexAvailable)
-			ImGui::BeginDisabled();
-
-		ImGui::Checkbox(T(TKEY("low_latency_mode"), "Low Latency Mode"), &settings.reflexLowLatencyMode);
-		if (auto _tt = Util::HoverTooltipWrapper()) {
-			ImGui::TextUnformatted(T(TKEY("low_latency_mode_tooltip_1"), "Cuts input delay by syncing CPU work closer to the GPU."));
-			ImGui::TextUnformatted(T(TKEY("low_latency_mode_tooltip_2"), "Can reduce max FPS a little, but usually feels more responsive."));
-		}
-
-		if (!settings.reflexLowLatencyMode)
-			ImGui::BeginDisabled();
-
-		ImGui::Checkbox(T(TKEY("low_latency_boost"), "Low Latency Boost"), &settings.reflexLowLatencyBoost);
-		if (auto _tt = Util::HoverTooltipWrapper()) {
-			ImGui::TextUnformatted(T(TKEY("low_latency_boost_tooltip_1"), "Keeps GPU clocks higher to avoid latency spikes at low GPU load."));
-			ImGui::TextUnformatted(T(TKEY("low_latency_boost_tooltip_2"), "Useful if frametime jumps; costs extra power and heat."));
-		}
-
-		if (!markerOptimizationAvailable)
-			ImGui::BeginDisabled();
-
-		ImGui::Checkbox(T(TKEY("use_markers_to_optimize"), "Use Markers To Optimize"), &settings.reflexUseMarkersToOptimize);
-		if (auto _tt = Util::HoverTooltipWrapper()) {
-			ImGui::TextUnformatted(T(TKEY("use_markers_to_optimize_tooltip_1"), "Uses frame markers for tighter Reflex timing."));
-			ImGui::TextUnformatted(T(TKEY("use_markers_to_optimize_tooltip_2"), "Try On first; turn Off if it causes stutter on your setup."));
-		}
-
-		if (!markerOptimizationAvailable)
-			ImGui::EndDisabled();
-
-		if (!markerOptimizationAvailable) {
-			ImGui::TextDisabled("%s", T(TKEY("marker_optimization_unavailable"), "Marker optimization unavailable (PCL not loaded)."));
-		}
-
-		ImGui::Checkbox(T(TKEY("use_fps_limit"), "Use FPS Limit"), &settings.reflexUseFPSLimit);
-		if (auto _tt = Util::HoverTooltipWrapper()) {
-			ImGui::TextUnformatted(T(TKEY("use_fps_limit_tooltip_1"), "Uses Reflex's internal FPS cap for steadier frametimes."));
-			ImGui::TextUnformatted(T(TKEY("use_fps_limit_tooltip_2"), "Can lower latency versus uncapped rendering."));
-		}
-
-		if (!settings.reflexLowLatencyMode)
-			ImGui::EndDisabled();
-
-		if (!settings.reflexUseFPSLimit)
-			ImGui::BeginDisabled();
-
-		if (!std::isfinite(settings.reflexFPSLimit))
-			settings.reflexFPSLimit = 60.0f;
-		settings.reflexFPSLimit = std::clamp(settings.reflexFPSLimit, 20.0f, 240.0f);
-		ImGui::SliderFloat(T(TKEY("fps_limit"), "FPS Limit"), &settings.reflexFPSLimit, 20.0f, 240.0f, "%.0f");
-		if (auto _tt = Util::HoverTooltipWrapper()) {
-			ImGui::TextUnformatted(T(TKEY("fps_limit_tooltip_1"), "Set your frame cap target."));
-			ImGui::TextUnformatted(T(TKEY("fps_limit_tooltip_2"), "Start about 2-3 FPS below refresh rate (e.g. 117 for 120 Hz)."));
-		}
-
-		if (!settings.reflexUseFPSLimit)
-			ImGui::EndDisabled();
-
-		if (!reflexAvailable)
-			ImGui::EndDisabled();
-
-		ImGui::TreePop();
-	}
-
-	// Foveated DLSS lives here rather than as a peer Feature so all DLSS surfaces share
-	// one settings panel; also mirrored in the Performance hub.
-	if (globals::game::isVR)
-		DrawFoveationControls();
-
-	if (ImGui::TreeNodeEx(T(TKEY("backend_diagnostics"), "Backend Diagnostics"))) {
-		// Streamline log level selection
-		const char* logLevels[] = {
-			T(TKEY("streamline_log_level_off"), "Off"),
-			T(TKEY("streamline_log_level_default"), "Default"),
-			T(TKEY("streamline_log_level_verbose"), "Verbose")
-		};
-		// streamlineLogLevel is sanitized in LoadSettings (runs on every load,
-		// not gated on this node being expanded), so the stored value is in range.
-		int logLevelIdx = static_cast<int>(settings.streamlineLogLevel);
-		if (ImGui::Combo(T(TKEY("streamline_logging"), "Streamline Logging"), &logLevelIdx, logLevels, IM_ARRAYSIZE(logLevels))) {
-			settings.streamlineLogLevel = static_cast<uint>(logLevelIdx);
-		}
-		Util::UI::RestartGatedAnnotate(bootSnapshot, settings, &Settings::streamlineLogLevel,
-			T(TKEY("streamline_logging_tooltip"),
-				"Verbosity of the NVIDIA Streamline backend logs. Useful for debugging issues with DLSS / "
-				"DLSS-G."));
-
-		// VR Debug visualization -- per-eye buffers and native inputs
-		if (globals::game::isVR) {
-			ImGui::Separator();
-			static float debugRescale = 0.15f;
-			ImGui::SliderFloat(T(TKEY("view_resize"), "View Resize"), &debugRescale, 0.05f, 1.f);
-
-			if (ImGui::TreeNode(T(TKEY("upscaling_intermediates"), "Upscaling Intermediates"))) {
-				if (vrIntermediateMotionVectors[0]) {
-					bool isDLSS = GetUpscaleMethod() == UpscaleMethod::kDLSS;
-					if (vrIntermediateColorIn[0] && vrIntermediateColorOut[0]) {
-						BUFFER_VIEWER_NODE_TITLE(vrIntermediateColorIn[0], "Left Eye In", debugRescale)
-						BUFFER_VIEWER_NODE_TITLE(vrIntermediateColorIn[1], "Right Eye In", debugRescale)
-						if (!isDLSS)
-							BUFFER_VIEWER_NODE_TITLE(vrIntermediateColorOut[0], "Left Eye Out", debugRescale)
-						BUFFER_VIEWER_NODE_TITLE(vrIntermediateColorOut[1], "Right Eye Out", debugRescale)
-					}
-					BUFFER_VIEWER_NODE_TITLE(vrIntermediateMotionVectors[0], "Left Eye MVec", debugRescale)
-					BUFFER_VIEWER_NODE_TITLE(vrIntermediateMotionVectors[1], "Right Eye MVec", debugRescale)
-					BUFFER_VIEWER_NODE_TITLE(vrIntermediateReactiveMask[0], "Left Eye Reactive", debugRescale)
-					BUFFER_VIEWER_NODE_TITLE(vrIntermediateReactiveMask[1], "Right Eye Reactive", debugRescale)
-					if (vrIntermediateTransparencyMask[0]) {
-						BUFFER_VIEWER_NODE_TITLE(vrIntermediateTransparencyMask[0], "Left Eye Transparency", debugRescale)
-						BUFFER_VIEWER_NODE_TITLE(vrIntermediateTransparencyMask[1], "Right Eye Transparency", debugRescale)
-					}
-				} else {
-					ImGui::TextDisabled("%s", T(TKEY("vr_intermediates_not_created"), "VR intermediates not yet created (enter game world)"));
-				}
-				ImGui::TreePop();
-			}
-
-			if (ImGui::TreeNode(T(TKEY("native_inputs"), "Native Inputs"))) {
-				auto renderer = globals::game::renderer;
-				auto& main = renderer->GetRuntimeData().renderTargets[RE::RENDER_TARGETS::kMAIN];
-				auto& mvec = renderer->GetRuntimeData().renderTargets[RE::RENDER_TARGETS::kMOTION_VECTOR];
-				auto& depth = renderer->GetDepthStencilData().depthStencils[RE::RENDER_TARGETS_DEPTHSTENCIL::kMAIN];
-
-				auto DisplayRT = [&](const char* label, ID3D11Texture2D* tex, ID3D11ShaderResourceView* srv) {
-					if (srv && tex) {
-						D3D11_TEXTURE2D_DESC desc;
-						tex->GetDesc(&desc);
-						char buf[128];
-						snprintf(buf, sizeof(buf), "%s (%ux%u)", label, desc.Width, desc.Height);
-						if (ImGui::TreeNode(buf)) {
-							ImGui::Image(srv, { desc.Width * debugRescale, desc.Height * debugRescale });
-							ImGui::TreePop();
-						}
-					}
-				};
-
-				DisplayRT("kMAIN (Color Input)", Util::AsReal(main.texture), Util::AsReal(main.SRV));
-				DisplayRT("Motion Vectors", Util::AsReal(mvec.texture), Util::AsReal(mvec.SRV));
-				DisplayRT("Depth", Util::AsReal(depth.texture), Util::AsReal(depth.depthSRV));
-
-				if (reactiveMaskTexture)
-					BUFFER_VIEWER_NODE_TITLE(reactiveMaskTexture, "Reactive Mask", debugRescale)
-				if (transparencyCompositionMaskTexture)
-					BUFFER_VIEWER_NODE_TITLE(transparencyCompositionMaskTexture, "Transparency Mask", debugRescale)
-
-				ImGui::TreePop();
-			}
-		}
-
-		ImGui::Separator();
-		Util::DrawDllVersionTable(T(TKEY("ffx_dll_table_title"), "AMD FidelityFX DLLs (click to open folder)"), FidelityFX::PluginDir, FidelityFX::dllVersions, "ffx_dll_versions");
-		Util::DrawDllVersionTable(T(TKEY("sl_dll_table_title"), "NVIDIA Streamline DLLs (click to open folder)"), streamline.pluginDir.c_str(), Streamline::dllVersions, "sl_dll_versions");
-		ImGui::TreePop();
-	}
+	ImGui::Separator();
+	Util::DrawDllVersionTable(T(TKEY("ffx_dll_table_title"), "AMD FidelityFX DLLs (click to open folder)"), FidelityFX::PluginDir, FidelityFX::dllVersions, "ffx_dll_versions");
+	Util::DrawDllVersionTable(T(TKEY("sl_dll_table_title"), "NVIDIA Streamline DLLs (click to open folder)"), streamline.pluginDir.c_str(), Streamline::dllVersions, "sl_dll_versions");
 }
 
 const VRDetection::OpenCompositeUpscalingState& Upscaling::GetOpenCompositeUpscalingBlocker(bool a_forceRefresh) const
@@ -1070,12 +1157,14 @@ void Upscaling::LoadSettings(json& o_json)
 	// detect absence explicitly so a pre-existing config still runs the migration.
 	const bool hadFsr4SchemaVersion = o_json.contains("fsr4RuntimeSelectionSchemaVersion");
 	settings = o_json;
+	settings.neuralRenderingTuning.Sanitize();
+	neuralRendering.ResetHistory();
 	if (!hadFsr4SchemaVersion)
 		settings.fsr4RuntimeSelectionSchemaVersion = 0;
 	ApplyLegacyFsr4RuntimeSelectionMigration(settings, fidelityFX.GetFsr4AdapterSupport());
 
 	// Sanitize loaded settings to ensure enum indices are valid
-	constexpr auto enumCount = 4;  // UpscaleMethod has 4 values: kNONE, kTAA, kFSR, kDLSS
+	constexpr auto enumCount = static_cast<uint>(magic_enum::enum_count<UpscaleMethod>());
 	if (settings.upscaleMethod >= static_cast<uint>(enumCount)) {
 		logger::warn("[Upscaling] Loaded upscaleMethod {} out of range, clamping to {}", settings.upscaleMethod, enumCount ? enumCount - 1 : 0);
 		settings.upscaleMethod = enumCount ? enumCount - 1 : 0;
@@ -1140,6 +1229,7 @@ void Upscaling::LoadSettings(json& o_json)
 void Upscaling::RestoreDefaultSettings()
 {
 	settings = {};
+	neuralRendering.ResetHistory();
 	foveatedRender.RestoreDefaultSettings();
 	ApplyOpenCompositeUpscalingBlocker(true);
 }
@@ -1543,7 +1633,6 @@ void Upscaling::CheckResources(UpscaleMethod a_upscalemethod)
 						vrIntermediateReactiveMask[i].reset();
 						vrIntermediateTransparencyMask[i].reset();
 					}
-					vrIntermediateDepth.reset();
 				}
 			}
 			if (a_upscalemethod == UpscaleMethod::kFSR)
@@ -1562,24 +1651,27 @@ void Upscaling::CheckResources(UpscaleMethod a_upscalemethod)
 	}
 }
 
+bool Upscaling::NeedsTypedDepth(UpscaleMethod a_method) const
+{
+	// Runtime FSR and VR require typed R32_FLOAT depth instead of the game's R24G8 resource.
+	// VR DLSS uses it for eye 1's depth guide: D3D11 cannot copy a region out of a depth-stencil.
+	return (a_method == UpscaleMethod::kFSR && (globals::game::isVR || runtimeFsrDepthTexture)) ||
+	       (a_method == UpscaleMethod::kDLSS && globals::game::isVR);
+}
+
 ID3D11ComputeShader* Upscaling::GetEncodeTexturesCS()
 {
 	auto upscaleMethod = GetUpscaleMethod();
-	uint methodIndex = (uint)upscaleMethod;
 
-	// Runtime FSR and VR require typed R32_FLOAT depth instead of the game's R24G8 resource.
-	if (upscaleMethod == UpscaleMethod::kFSR && (globals::game::isVR || runtimeFsrDepthTexture)) {
-		std::vector<std::pair<const char*, const char*>> defines = {
-			{ "FSR", "" },
-			{ "DEPTH_OUTPUT", "" }
-		};
-		return encodeTexturesCSDepthOutput.Get(L"Data/Shaders/Upscaling/EncodeTexturesCS.hlsl", defines, "cs_5_0");
-	}
+	return GetEncodeTexturesCS(upscaleMethod, NeedsTypedDepth(upscaleMethod) ? EncodeOutput::kTypedDepth : EncodeOutput::kMasksOnly);
+}
 
+ID3D11ComputeShader* Upscaling::GetEncodeTexturesCS(UpscaleMethod a_method, EncodeOutput a_output)
+{
 	std::vector<std::pair<const char*, const char*>> defines;
 
 	// Add upscale method define
-	switch (upscaleMethod) {
+	switch (a_method) {
 	case UpscaleMethod::kDLSS:
 		defines.push_back({ "DLSS", "" });
 		break;
@@ -1591,7 +1683,34 @@ ID3D11ComputeShader* Upscaling::GetEncodeTexturesCS()
 		break;
 	}
 
-	return encodeTexturesCS[methodIndex].Get(L"Data/Shaders/Upscaling/EncodeTexturesCS.hlsl", defines, "cs_5_0");
+	if (a_output == EncodeOutput::kTypedDepth)
+		defines.push_back({ "DEPTH_OUTPUT", "" });
+
+	return encodeTexturesCS[(uint)a_method][(uint)a_output].Get(L"Data/Shaders/Upscaling/EncodeTexturesCS.hlsl", defines, "cs_5_0");
+}
+
+bool Upscaling::GetEncodeInputs(EncodeInputViews& a_views, const char*& a_missing) const
+{
+	auto renderer = globals::game::renderer;
+	auto& temporalAAMask = renderer->GetRuntimeData().renderTargets[RE::RENDER_TARGETS::kTEMPORAL_AA_MASK];
+	auto& normals = renderer->GetRuntimeData().renderTargets[globals::deferred->forwardRenderTargets[2]];
+	auto& motionVector = renderer->GetRuntimeData().renderTargets[RE::RENDER_TARGETS::kMOTION_VECTOR];
+	auto& depth = renderer->GetDepthStencilData().depthStencils[RE::RENDER_TARGETS_DEPTHSTENCIL::kMAIN];
+
+	a_missing = nullptr;
+	if (!temporalAAMask.SRV)
+		a_missing = "TAA mask";
+	else if (!normals.SRV)
+		a_missing = "normals";
+	else if (!motionVector.SRV)
+		a_missing = "motion vectors";
+	else if (!depth.depthSRV)
+		a_missing = "depth";
+	if (a_missing)
+		return false;
+
+	a_views = { Util::AsReal(temporalAAMask.SRV), Util::AsReal(normals.SRV), Util::AsReal(motionVector.SRV), Util::AsReal(depth.depthSRV) };
+	return true;
 }
 
 ID3D11PixelShader* Upscaling::GetDepthRefractionUpscalePS()
@@ -1663,31 +1782,6 @@ eastl::unique_ptr<Texture2D> Upscaling::CreateTextureFromSource(ID3D11Resource* 
 void Upscaling::CreateVRIntermediateTextures(uint32_t inWidth, uint32_t inHeight, uint32_t outWidth, uint32_t outHeight,
 	ID3D11Resource* colorSrc, ID3D11Resource* mvecSrc, ID3D11Resource* reactiveSrc, ID3D11Resource* transparencySrc)
 {
-	// Right-eye-only depth intermediate for DLSS. Streamline.Upscale copies the right-eye depth
-	// slice here before evaluating DLSS eye 1; eye 0 reads the combined stereo depth directly at
-	// zero offset. R24G8_TYPELESS matches the game's D24S8_TYPELESS cast group — R32_TYPELESS is
-	// a different cast group and produces silent zero-copy failures.
-	{
-		D3D11_TEXTURE2D_DESC depthDesc = {};
-		depthDesc.Width = inWidth;
-		depthDesc.Height = inHeight;
-		depthDesc.MipLevels = 1;
-		depthDesc.ArraySize = 1;
-		depthDesc.Format = DXGI_FORMAT_R24G8_TYPELESS;
-		depthDesc.SampleDesc.Count = 1;
-		depthDesc.Usage = D3D11_USAGE_DEFAULT;
-		depthDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-		vrIntermediateDepth = eastl::make_unique<Texture2D>(depthDesc);
-
-		Util::SetResourceName(vrIntermediateDepth->resource.get(), "Upscale_Depth_Right");
-
-		D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-		srvDesc.Format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
-		srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-		srvDesc.Texture2D.MipLevels = 1;
-		vrIntermediateDepth->CreateSRV(srvDesc);
-	}
-
 	// All buffers are per-eye: Streamline validates all extents against the input color texture
 	// dimensions, so every tagged resource must be isolated per-eye at {0,0}.
 	for (int i = 0; i < 2; i++) {
@@ -1697,8 +1791,7 @@ void Upscaling::CreateVRIntermediateTextures(uint32_t inWidth, uint32_t inHeight
 		vrIntermediateColorOut[i] = CreateTextureFromSource(colorSrc, outWidth, outHeight, false, true, false, ("Upscale_ColorOut_" + suffix).c_str());
 
 		// Linear depth: R32_FLOAT so FSR's GetFfxResourceDescriptionDX11() returns a valid format.
-		// EncodeTexturesCS writes the non-linear depth as R32_FLOAT for FSR. Kept separate from
-		// vrIntermediateDepth (R24G8_TYPELESS) which Streamline copies into for DLSS right eye.
+		// EncodeTexturesCS writes the non-linear depth as R32_FLOAT for FSR and as VR DLSS's eye-1 depth guide.
 		{
 			D3D11_TEXTURE2D_DESC ldDesc = {};
 			ldDesc.Width = inWidth;
@@ -1711,7 +1804,7 @@ void Upscaling::CreateVRIntermediateTextures(uint32_t inWidth, uint32_t inHeight
 			ldDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_UNORDERED_ACCESS;
 			vrIntermediateLinearDepth[i] = eastl::make_unique<Texture2D>(ldDesc);
 
-			Util::SetResourceName(vrIntermediateLinearDepth[i]->resource.get(), ("Upscale_LinearDepth_" + suffix).c_str());
+			Util::SetResourceName(vrIntermediateLinearDepth[i]->resource.get(), ("Upscale_TypedDepth_" + suffix).c_str());
 
 			D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc2 = {};
 			srvDesc2.Format = DXGI_FORMAT_R32_FLOAT;
@@ -1749,7 +1842,7 @@ void Upscaling::EnsureVRIntermediateTextures()
 	// hook spoofs HMD-recommended size). DLSS output needs to land at real
 	// DisplayRes, so size the OUTPUT intermediates from perfMode's snapshot
 	// of the true HMD resolution. Input intermediates stay at renderSize.
-	const bool dlssperfActive = perfMode.IsHookActive() && perfMode.GetTestTexture();
+	const bool dlssperfActive = perfMode.IsPresentingTestTexture();
 	const float2 outputSize = dlssperfActive ? perfMode.GetDisplayScreenSize() : screenSize;
 
 	uint32_t eyeWidthOut = (uint32_t)(outputSize.x / 2);
@@ -2033,8 +2126,21 @@ void Upscaling::ConfigureUpscaling(RE::BSGraphics::State* a_viewport)
 		runtimeData.dynamicResolutionLock = 1;
 }
 
+Feature::PostProcessingInput Upscaling::GetPostProcessingInput() const
+{
+	if (!perfMode.IsHookActive())
+		return {};
+	PostProcessingInput input{ perfMode.GetDisplayEyeWidth() * 2, perfMode.GetDisplayEyeHeight() };
+	if (perfMode.IsPostInterceptActive()) {
+		input.texture = perfMode.GetTestTexture();
+		input.srv = perfMode.GetTestTextureSRV();
+	}
+	return input;
+}
+
 void Upscaling::SetupResources()
 {
+	neuralRendering.SetupResources();
 	ApplyOpenCompositeUpscalingBlocker(true);
 	if (const auto& blocker = GetOpenCompositeUpscalingBlocker(); blocker.active) {
 		logger::warn("[Upscaling] Skipping upscaling resource setup because OpenComposite has {}=true.", blocker.settingName);
@@ -2128,11 +2234,13 @@ void Upscaling::SetupResources()
 
 void Upscaling::ClearShaderCache()
 {
+	neuralRendering.ClearShaderCache();
 	foveatedRender.ClearShaderCache();
-	for (int i = 0; i < 5; ++i) {
-		encodeTexturesCS[i].Reset();
+	for (auto& methodSlot : encodeTexturesCS) {
+		for (auto& outputSlot : methodSlot) {
+			outputSlot.Reset();
+		}
 	}
-	encodeTexturesCSDepthOutput.Reset();
 	copyDepthToSharedBufferPS.Reset();
 
 	depthRefractionUpscalePS.Reset();
@@ -2141,9 +2249,14 @@ void Upscaling::ClearShaderCache()
 	upscaleVS.Reset();
 }
 
-void Upscaling::CopySharedD3D12Resources()
+bool Upscaling::CopySharedD3D12Resources()
 {
 	CS_GPU_PASS("Upscaling::CopySharedD3D12Resources");
+
+	auto* vs = GetUpscaleVS();
+	auto* ps = copyDepthToSharedBufferPS.Get(L"Data\\Shaders\\Upscaling\\CopyDepthToSharedBufferPS.hlsl", { { "PSHADER", "" } }, "ps_5_0");
+	if (!vs || !ps)
+		return false;
 
 	auto renderer = globals::game::renderer;
 	auto context = globals::d3d::context;
@@ -2152,10 +2265,6 @@ void Upscaling::CopySharedD3D12Resources()
 	context->CopyResource(dx12SwapChain.motionVectorBufferShared12->resource11, Util::AsReal(motionVector.texture));
 
 	auto& depth = renderer->GetDepthStencilData().depthStencils[RE::RENDER_TARGETS_DEPTHSTENCIL::kMAIN];
-
-	auto* vs = GetUpscaleVS();
-	if (!vs)
-		return;
 
 	{
 		// Set up viewport for fullscreen rendering
@@ -2191,10 +2300,8 @@ void Upscaling::CopySharedD3D12Resources()
 		ID3D11RenderTargetView* rtvs[1] = { dx12SwapChain.depthBufferShared12->rtv };
 		context->OMSetRenderTargets(ARRAYSIZE(rtvs), rtvs, nullptr);
 
-		if (auto* ps = copyDepthToSharedBufferPS.Get(L"Data\\Shaders\\Upscaling\\CopyDepthToSharedBufferPS.hlsl", { { "PSHADER", "" } }, "ps_5_0")) {
-			context->PSSetShader(ps, nullptr, 0);
-			context->Draw(3, 0);
-		}
+		context->PSSetShader(ps, nullptr, 0);
+		context->Draw(3, 0);
 	}
 
 	// Clean up
@@ -2204,6 +2311,7 @@ void Upscaling::CopySharedD3D12Resources()
 	context->OMSetRenderTargets(0, nullptr, nullptr);
 	context->PSSetShader(nullptr, nullptr, 0);
 	context->VSSetShader(nullptr, nullptr, 0);
+	return true;
 }
 
 void UpdateCameraData()
@@ -2356,11 +2464,16 @@ bool Upscaling::IsFrameGenerationActive() const
 	return fidelityFX.isFrameGenActive;
 }
 
-bool Upscaling::ShouldUseFrameGenerationThisFrame() const
+bool Upscaling::ShouldPrepareFrameGeneration() const
 {
 	auto* state = globals::state;
 	const bool menuOpen = state && state->IsPausedOrMenuOpen(globals::game::ui);
 	return IsFrameGenerationDx12PathActive() && settings.frameGenerationMode && (settings.frameGenerationAllowInMenus || !menuOpen);
+}
+
+bool Upscaling::ShouldUseFrameGenerationThisFrame() const
+{
+	return frameGenerationPrepared;
 }
 
 bool Upscaling::IsUpscalingActive() const
@@ -2624,25 +2737,31 @@ void Upscaling::Upscale()
 	{
 		CS_GPU_PASS("Upscaling::EncodeTextures");
 
-		auto& temporalAAMask = renderer->GetRuntimeData().renderTargets[RE::RENDER_TARGETS::kTEMPORAL_AA_MASK];
-		auto& normals = renderer->GetRuntimeData().renderTargets[globals::deferred->forwardRenderTargets[2]];
-		auto& depth = renderer->GetDepthStencilData().depthStencils[RE::RENDER_TARGETS_DEPTHSTENCIL::kMAIN];
-
 		// VR: ensure per-eye intermediate textures exist before the dispatch writes into them
 		if (globals::game::isVR)
 			EnsureVRIntermediateTextures();
 
 		auto renderSize = Util::ConvertToDynamic(globals::state->screenSize);
 		uint32_t numEyes = globals::game::isVR ? 2 : 1;
-		uint32_t eyeRenderWidth = (uint32_t)(renderSize.x / numEyes);
+		uint32_t eyeRenderWidth = NR::EyeRenderWidth((uint32_t)renderSize.x, numEyes);
 		uint32_t eyeRenderHeight = (uint32_t)renderSize.y;
 
 		// Sources are the same combined stereo buffers for both VR and non-VR.
 		// The shader applies EyeOffsetX to sample the correct half.
-		ID3D11ShaderResourceView* views[4] = { Util::AsReal(temporalAAMask.SRV), Util::AsReal(normals.SRV), Util::AsReal(motionVector.SRV), Util::AsReal(depth.depthSRV) };
-		context->CSSetShaderResources(0, ARRAYSIZE(views), views);
+		EncodeInputViews views{};
+		const char* missingInput = nullptr;
+		ID3D11ComputeShader* encodeCS = nullptr;
+		if (GetEncodeInputs(views, missingInput)) {
+			context->CSSetShaderResources(0, (uint)views.size(), views.data());
+			encodeCS = GetEncodeTexturesCS();
+		} else {
+			static std::once_flag loggedMissingInputs;
+			std::call_once(loggedMissingInputs, [missingInput] {
+				logger::error("[Upscaling] Missing encoder input SRV ({}); skipping EncodeTextures dispatch", missingInput);
+			});
+		}
 
-		if (auto* encodeCS = GetEncodeTexturesCS()) {
+		if (encodeCS) {
 			context->CSSetShader(encodeCS, nullptr, 0);
 
 			for (uint32_t i = 0; i < numEyes; ++i) {
@@ -2655,11 +2774,15 @@ void Upscaling::Upscale()
 				auto upscalingBuffer = upscalingDataCB->CB();
 				context->CSSetConstantBuffers(0, 1, &upscalingBuffer);
 
-				// u2 is DLSS-only; u3 provides typed depth for VR FSR and flat runtime FSR.
+				// u2 is DLSS-only; u3 provides typed depth for VR FSR, flat runtime FSR and VR DLSS.
 				ID3D11UnorderedAccessView* depthOutput = nullptr;
-				if (upscaleMethod == UpscaleMethod::kFSR) {
-					depthOutput = globals::game::isVR ? vrIntermediateLinearDepth[i]->uav.get() :
-					                                    (runtimeFsrDepthTexture ? runtimeFsrDepthTexture->uav.get() : nullptr);
+				if (NeedsTypedDepth(upscaleMethod)) {
+					if (upscaleMethod == UpscaleMethod::kFSR) {
+						depthOutput = globals::game::isVR ? vrIntermediateLinearDepth[i]->uav.get() :
+						                                    (runtimeFsrDepthTexture ? runtimeFsrDepthTexture->uav.get() : nullptr);
+					} else if (upscaleMethod == UpscaleMethod::kDLSS) {
+						depthOutput = (i == 1) ? vrIntermediateLinearDepth[i]->uav.get() : nullptr;
+					}
 				}
 				ID3D11UnorderedAccessView* uavs[4] = {
 					globals::game::isVR ? vrIntermediateReactiveMask[i]->uav.get() : reactiveMaskTexture->uav.get(),
@@ -2689,15 +2812,15 @@ void Upscaling::Upscale()
 	{
 		CS_GPU_PASS("Upscaling::Upscale");
 
+		FoveatedRenderImpl::Bridge::routeHandledThisFrame = false;
+
 		// Opt-in FoveatedRender route, shared by kDLSS/kFSR; falls through to the
-		// standard path on failure. Menu-skip is required: in menus the world stops
-		// producing fresh motion vectors/depth while kMAIN keeps changing (UI
-		// composites), so the subrect route would accumulate history against stale data.
+		// standard path on failure. Main/loading menus must stay off: their backdrop uses
+		// synthesized camera MVs or a per-frame reset that the subrect history cannot follow.
 		auto tryFoveatedRoute = [&](ID3D11Resource* a_depth, const char* a_methodLabel) -> bool {
-			auto* ui = globals::game::ui;
 			auto* st = globals::state;
-			const bool menuOpen = st && st->IsPausedOrMenuOpen(ui);
-			if (!(FoveatedRenderImpl::Bridge::IsRouteActive() && globals::game::isVR && !menuOpen))
+			const bool menuBackdrop = st && st->IsMainOrLoadingMenuOpen();
+			if (!(FoveatedRenderImpl::Bridge::IsRouteActive() && globals::game::isVR && !menuBackdrop))
 				return false;
 			if (!FoveatedRenderImpl::Preprocess::EncodeUpscalingTextures(*this))
 				return false;
@@ -2724,6 +2847,7 @@ void Upscaling::Upscale()
 
 			const bool routeHandled = tryFoveatedRoute(
 				Util::AsReal(globals::game::renderer->GetDepthStencilData().depthStencils[RE::RENDER_TARGETS_DEPTHSTENCIL::kMAIN].texture), "DLSS");
+			FoveatedRenderImpl::Bridge::routeHandledThisFrame = routeHandled;
 			if (!routeHandled) {
 				streamline.Upscale(Util::AsReal(main.texture), reactiveMaskTexture->resource.get(), transparencyCompositionMaskTexture->resource.get(), motionVectorCopyTexture->resource.get());
 			}
@@ -2734,11 +2858,12 @@ void Upscaling::Upscale()
 			// routing for DLSS.
 			auto& depth = renderer->GetDepthStencilData().depthStencils[RE::RENDER_TARGETS_DEPTHSTENCIL::kMAIN];
 			ID3D11Resource* fsrDepth = runtimeFsrDepthTexture ? runtimeFsrDepthTexture->resource.get() : Util::AsReal(depth.texture);
-			ID3D11Resource* fsrColorOut = (perfMode.IsHookActive() && perfMode.GetTestTexture()) ?
+			ID3D11Resource* fsrColorOut = perfMode.IsPresentingTestTexture() ?
 			                                  static_cast<ID3D11Resource*>(perfMode.GetTestTexture()) :
 			                                  nullptr;
 
 			const bool routeHandled = tryFoveatedRoute(fsrDepth, "FSR");
+			FoveatedRenderImpl::Bridge::routeHandledThisFrame = routeHandled;
 			if (!routeHandled) {
 				fidelityFX.Upscale(Util::AsReal(main.texture), fsrDepth, reactiveMaskTexture->resource.get(), transparencyCompositionMaskTexture->resource.get(), Util::AsReal(motionVector.texture), settings.sharpnessFSR, fsrColorOut);
 			}
@@ -3065,7 +3190,7 @@ void Upscaling::ApplySharpening()
 
 	// Streamline::Upscale already redirected DLSS to write into refraTempTex when
 	// sharpening is active, so RCAS reads it directly here -- no CopyResource needed.
-	if (perfMode.IsHookActive() && perfMode.GetTestTexture()) {
+	if (perfMode.IsPresentingTestTexture()) {
 		if (!IsPerfModeSharpenRedirectActive())
 			return;
 
@@ -3140,11 +3265,15 @@ void Upscaling::Main_PostProcessing::thunk(RE::ImageSpaceManager* a_this, uint32
 
 	auto& upscaling = globals::features::upscaling;
 	auto upscaleMethod = upscaling.GetUpscaleMethod();
+	const auto nrRenderSize = Util::ConvertToDynamic(globals::state->screenSize);
+	upscaling.neuralRendering.DrawBeforeUpscaling(upscaling.loaded && upscaling.settings.neuralRenderingEnabled, upscaling.settings.neuralRenderingTuning, uint32_t(a_target), nrRenderSize);
+	upscaling.neuralRendering.CaptureBeforeUpscaling();
 
-	if (upscaling.ShouldUseFrameGenerationThisFrame()) {
+	upscaling.frameGenerationPrepared = false;
+	if (upscaling.ShouldPrepareFrameGeneration()) {
 		if (postProcessing.loaded)
 			postProcessing.ClearBorderMotionVectorsForFrameGen();
-		upscaling.CopySharedD3D12Resources();
+		upscaling.frameGenerationPrepared = upscaling.CopySharedD3D12Resources();
 	}
 
 	if (upscaleMethod != UpscaleMethod::kNONE && upscaleMethod != UpscaleMethod::kTAA) {
@@ -3152,6 +3281,7 @@ void Upscaling::Main_PostProcessing::thunk(RE::ImageSpaceManager* a_this, uint32
 	} else if (globals::game::isVR) {
 		upscaling.UpscaleDepth();
 	}
+	upscaling.neuralRendering.CaptureAfterUpscaling();
 
 	if (upscaleMethod == UpscaleMethod::kDLSS) {
 		// FoveatedRender's DLSS output doesn't land in sharpenerTexture the
@@ -3160,13 +3290,15 @@ void Upscaling::Main_PostProcessing::thunk(RE::ImageSpaceManager* a_this, uint32
 		// ApplySharpening can't read sharpenerTexture. Route through
 		// Postprocess::ApplyDlssSharpening which does the kMAIN → sharpener →
 		// kMAIN round-trip. Both paths honor sharpnessDLSS=0 to disable RCAS.
-		if (FoveatedRenderImpl::Bridge::IsRouteActive()) {
+		const bool perfModeActive = upscaling.perfMode.IsPresentingTestTexture();
+		if (!perfModeActive && FoveatedRenderImpl::Bridge::routeHandledThisFrame) {
 			FoveatedRenderImpl::Postprocess::ApplyDlssSharpening(upscaling);
 		} else {
 			upscaling.ApplySharpening();
 		}
 	}
 
+	upscaling.neuralRendering.RecordStage(false);
 	Util::SetTemporal(upscaleMethod == UpscaleMethod::kTAA);
 
 	// Redirect kFRAMEBUFFER to float texture before ISHDR runs so HDR values >1.0 survive
@@ -3202,6 +3334,7 @@ void Upscaling::Main_PostProcessing::thunk(RE::ImageSpaceManager* a_this, uint32
 	if (hdrLoaded)
 		globals::features::hdrDisplay.RestoreFramebuffer();
 
+	upscaling.neuralRendering.RecordStage(true);
 	Util::SetTemporal(false);
 }
 
